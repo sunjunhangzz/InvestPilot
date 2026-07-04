@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import sys
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,44 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from app.shared.paths import get_config_paths
+
+
+@dataclass
+class ExclusionStats:
+    """Counters for stocks skipped or flagged during classification."""
+
+    total_raw: int = 0
+    empty_code_or_name: int = 0
+    b_share: int = 0
+    neeq: int = 0
+    is_st: int = 0
+    is_inactive: int = 0
+    by_board: dict[str, int] = field(default_factory=dict)
+    kept: int = 0
+
+    def summary_lines(self) -> list[str]:
+        """Return human-readable summary lines for the exclusion breakdown."""
+        lines: list[str] = []
+        lines.append(f"  AkShare returned: {self.total_raw}")
+        lines.append(f"  written (kept): {self.kept}")
+        skipped_total = self.empty_code_or_name + self.b_share + self.neeq
+        if skipped_total:
+            lines.append(f"  skipped: {skipped_total}")
+            if self.empty_code_or_name:
+                lines.append(f"    - empty code/name: {self.empty_code_or_name}")
+            if self.b_share:
+                lines.append(f"    - B-shares (9xxxxx): {self.b_share}")
+            if self.neeq:
+                lines.append(f"    - NEEQ (4xxxxx): {self.neeq}")
+        lines.append(f"  flagged ST: {self.is_st}")
+        lines.append(f"  flagged inactive (退市等): {self.is_inactive}")
+        lines.append("  by board:")
+        for board, count in sorted(self.by_board.items(), key=lambda x: -x[1]):
+            lines.append(f"    {board}: {count}")
+        # Main board pool is the subset the screening pipeline will actually use.
+        main_board = self.by_board.get("主板", 0) - self.is_st - self.is_inactive
+        lines.append(f"  主板候选池 (主板 - ST - 退市): {max(main_board, 0)}")
+        return lines
 
 
 def classify_stock(code: str, name: str) -> dict[str, Any]:
@@ -108,8 +147,8 @@ def save_raw_stock_list(raw_df: Any, source: str = "ak.stock_info_a_code_name") 
     return csv_path
 
 
-def fetch_stock_list() -> list[dict[str, Any]]:
-    """Return a list of stock dicts from AkShare.
+def fetch_stock_list() -> tuple[list[dict[str, Any]], ExclusionStats]:
+    """Return stock dicts and exclusion statistics from AkShare.
 
     Each dict contains the fields matching the `stocks` table:
     code, name, market, board, industry, is_st, is_active, list_date.
@@ -125,6 +164,7 @@ def fetch_stock_list() -> list[dict[str, Any]]:
     # the CSV + meta files let us diff the old structure.
     save_raw_stock_list(raw)
 
+    stats = ExclusionStats(total_raw=len(raw))
     stocks: list[dict[str, Any]] = []
 
     for _, row in raw.iterrows():
@@ -132,19 +172,32 @@ def fetch_stock_list() -> list[dict[str, Any]]:
         name = str(row["name"]).strip()
 
         if not code or not name:
+            stats.empty_code_or_name += 1
             continue
 
         # B-shares and NEEQ are out of scope for MVP.
-        if code.startswith(("9", "4")):
+        if code.startswith("9"):
+            stats.b_share += 1
+            continue
+        if code.startswith("4"):
+            stats.neeq += 1
             continue
 
         classification = classify_stock(code, name)
+        board = classification["board"]
+        stats.by_board[board] = stats.by_board.get(board, 0) + 1
+
+        if classification["is_st"]:
+            stats.is_st += 1
+        if not classification["is_active"]:
+            stats.is_inactive += 1
+
         stocks.append(
             {
                 "code": code,
                 "name": name,
                 "market": classification["market"],
-                "board": classification["board"],
+                "board": board,
                 "industry": None,
                 "is_st": classification["is_st"],
                 "is_active": classification["is_active"],
@@ -152,7 +205,8 @@ def fetch_stock_list() -> list[dict[str, Any]]:
             }
         )
 
-    return stocks
+    stats.kept = len(stocks)
+    return stocks, stats
 
 
 def upsert_stocks(

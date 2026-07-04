@@ -59,7 +59,7 @@ def main() -> int:
 
     # --- fetch ---
     try:
-        stocks = fetch_stock_list()
+        stocks, stats = fetch_stock_list()
     except Exception as error:
         write_json_log(
             file_name="data_source.log",
@@ -100,29 +100,16 @@ def main() -> int:
         module="update_stocks",
         task_id=task_id,
         message="stock list written",
-        context={"stock_count": written},
+        context={
+            "stock_count": written,
+            "main_board_candidates": max(stats.by_board.get("主板", 0) - stats.is_st - stats.is_inactive, 0),
+        },
     )
 
     # --- summary ---
-    boards: dict[str, int] = {}
-    st_count = 0
-    active_count = 0
-    main_board_count = 0
-    for s in stocks:
-        boards[s["board"]] = boards.get(s["board"], 0) + 1
-        if s["is_st"]:
-            st_count += 1
-        if s["is_active"]:
-            active_count += 1
-        if s["board"] == "主板":
-            main_board_count += 1
-
     print(f"written: {written} stocks (UPSERT)")
-    print(f"  主板: {main_board_count}")
-    print(f"  ST: {st_count}")
-    print(f"  active: {active_count}")
-    for board, count in sorted(boards.items()):
-        print(f"  {board}: {count}")
+    for line in stats.summary_lines():
+        print(line)
 
     return 0
 
