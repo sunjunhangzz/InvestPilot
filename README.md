@@ -91,6 +91,7 @@ docs/02-implementation/数据库设计.md     SQLite表结构和写入规则
 docs/02-implementation/日志体系.md       任务日志、本地日志和日志收集规则
 docs/03-operations/任务机制.md           长任务、run_id、task_id和失败处理
 docs/03-operations/本地启动.md           本机开发环境启动步骤
+docs/03-operations/日志目录约定.md       data/logs文件归属和失败记录规则
 docs/04-experiments/实验模块管理.md      多Agent、优化算法等高级模块的影子运行规则
 docs/05-standards/                      开发规范、命名规范、日志规范、配置和安全规范
 docs/06-code-standards/                 代码层语言规范、测试规范和安全编码规范
