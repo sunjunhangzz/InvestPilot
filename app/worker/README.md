@@ -55,3 +55,20 @@ requests
 python-dotenv
 ```
 
+依赖文件：
+
+```text
+requirements.txt
+```
+
+本地创建虚拟环境：
+
+```bash
+cd /Users/sjh/Desktop/A股AI投研系统/app/worker
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+如果 AkShare 下载失败，优先检查网络，再重新执行安装命令。不要把 `.venv` 提交到 Git。
