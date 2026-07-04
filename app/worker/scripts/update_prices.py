@@ -35,7 +35,7 @@ def _new_task_id() -> str:
 
 def _get_main_board_codes(connection) -> list[str]:
     rows = connection.execute(
-        "SELECT code FROM stocks WHERE board = '主板' AND is_active = 1 ORDER BY code"
+        "SELECT code FROM stocks WHERE board = '主板' AND is_active = 1 AND is_st = 0 ORDER BY code"
     ).fetchall()
     return [row["code"] for row in rows]
 
@@ -136,6 +136,7 @@ def main(argv: list[str] | None = None) -> int:
         if (idx + 1) % 100 == 0:
             elapsed = time.monotonic() - start_time
             print(f"  progress: {idx + 1}/{len(codes)} ({elapsed:.0f}s)")
+        time.sleep(0.3)  # throttle requests to avoid CPU/network congestion
 
     elapsed = time.monotonic() - start_time
     with database_connection() as connection:
