@@ -22,6 +22,7 @@ data/logs/*
 data/raw/*
 data/*.sqlite
 data/*.sqlite-*
+reports/*
 reports/daily/*
 reports/stock/*
 backups/database/*
@@ -31,6 +32,8 @@ backups/config/*
 !data/cache/.gitkeep
 !data/logs/.gitkeep
 !data/raw/.gitkeep
+!reports/daily/
+!reports/stock/
 !reports/daily/.gitkeep
 !reports/stock/.gitkeep
 !backups/database/.gitkeep
