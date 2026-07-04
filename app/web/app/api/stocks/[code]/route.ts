@@ -38,11 +38,20 @@ export async function GET(
     [code],
   );
 
+  // Latest AI report.
+  const aiReport = queryOne(
+    `SELECT content, model_name, status, trade_date
+     FROM ai_reports WHERE code = ? AND status = 'success'
+     ORDER BY created_at DESC LIMIT 1`,
+    [code],
+  );
+
   return ok(
     mapToCamelCase({
       ...(stock as Record<string, unknown>),
       factors: factors ?? null,
       recentRecommendations: recs,
+      aiReport: aiReport ?? null,
     }),
   );
 }
