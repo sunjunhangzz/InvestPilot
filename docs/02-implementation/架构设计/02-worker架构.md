@@ -29,12 +29,14 @@ app/worker/
     watchlist/
     reports/
     tasks/
-    logging/
+    loggers/
     utils/
   tests/
 ```
 
 `src/` 可以在正式写代码时创建。
+
+说明：日志工具目录使用 `loggers/`，避免和 Python 标准库 `logging` 同名导致导入遮蔽。
 
 ## 脚本职责
 
