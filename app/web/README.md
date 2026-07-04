@@ -25,6 +25,8 @@
 /settings
 ```
 
+当前 `/` 跳转到 `/dashboard`。
+
 ## API
 
 ```text
@@ -58,3 +60,16 @@ POST /api/settings
 - 复杂大屏
 - 独立 NestJS 后端
 
+## 本地启动
+
+```bash
+cd /Users/sjh/Desktop/A股AI投研系统/app/web
+npm install
+npm run dev
+```
+
+开发服务器默认地址：
+
+```text
+http://localhost:3000
+```
