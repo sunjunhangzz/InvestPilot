@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
+from app.shared.paths import get_config_paths
 
 
 def classify_stock(code: str, name: str) -> dict[str, Any]:
@@ -74,6 +79,35 @@ def classify_stock(code: str, name: str) -> dict[str, Any]:
     }
 
 
+def save_raw_stock_list(raw_df: Any, source: str = "ak.stock_info_a_code_name") -> Path:
+    """Save the raw AkShare DataFrame to data/raw/ for future field-change audits.
+
+    The CSV is the primary artifact; a companion ``_meta.json`` records the
+    data source, collection timestamp, and row count so investigations later
+    can trace provenance without guessing.
+    """
+
+    raw_dir = get_config_paths()["rawDataPath"]
+    raw_dir.mkdir(parents=True, exist_ok=True)
+
+    collected_at = datetime.now(ZoneInfo("Asia/Shanghai"))
+    timestamp = collected_at.strftime("%Y%m%d_%H%M%S")
+    csv_path = raw_dir / f"stocks_raw_{timestamp}.csv"
+    meta_path = raw_dir / f"stocks_raw_{timestamp}_meta.json"
+
+    raw_df.to_csv(csv_path, index=False)
+
+    meta = {
+        "source": source,
+        "collected_at": collected_at.isoformat(timespec="seconds"),
+        "row_count": len(raw_df),
+        "columns": list(raw_df.columns),
+    }
+    meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    return csv_path
+
+
 def fetch_stock_list() -> list[dict[str, Any]]:
     """Return a list of stock dicts from AkShare.
 
@@ -86,6 +120,11 @@ def fetch_stock_list() -> list[dict[str, Any]]:
     import akshare as ak  # type: ignore[import-untyped]
 
     raw = ak.stock_info_a_code_name()
+
+    # Save raw data before processing — if AkShare changes fields later,
+    # the CSV + meta files let us diff the old structure.
+    save_raw_stock_list(raw)
+
     stocks: list[dict[str, Any]] = []
 
     for _, row in raw.iterrows():
