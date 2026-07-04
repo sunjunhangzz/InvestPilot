@@ -43,13 +43,19 @@ export default function DashboardPage() {
       const json = await res.json();
       if (!json.ok) { alert(json.error?.message ?? "启动失败"); return; }
       const taskId = json.data.taskId;
+      let attempts = 0;
+      const maxAttempts = 3600; // ~2 hours at 2s intervals
       const poll = setInterval(async () => {
-        const r = await fetch(`/api/tasks/${taskId}`);
-        const j = await r.json();
-        if (j.ok && j.data.status !== "pending" && j.data.status !== "running") {
-          clearInterval(poll);
-          window.location.reload();
-        }
+        attempts++;
+        if (attempts > maxAttempts) { clearInterval(poll); return; }
+        try {
+          const r = await fetch(`/api/tasks/${taskId}`);
+          const j = await r.json();
+          if (j.ok && j.data.status !== "pending" && j.data.status !== "running") {
+            clearInterval(poll);
+            window.location.reload();
+          }
+        } catch { /* network error — keep polling */ }
       }, 2000);
     } catch { alert("网络错误"); }
   };
