@@ -9,6 +9,7 @@ from typing import Literal
 from zoneinfo import ZoneInfo
 
 from app.worker.src.db import connect_database
+from app.worker.src.loggers import LogFileName, log_exception
 
 
 RunType = Literal["manual", "morning", "afternoon", "scheduled"]
@@ -170,3 +171,128 @@ def create_run(
     finally:
         if connection is None:
             active_connection.close()
+
+
+def update_run_status(
+    *,
+    run_id: str,
+    status: RunStatus,
+    error_message: str | None = None,
+    connection: sqlite3.Connection | None = None,
+) -> None:
+    """Update a run status using the same lifecycle rules as system_tasks.
+
+    A run should be created as `pending`, transitioned to `running` when the
+    first worker task starts, and finalised to `success` or `failed` when all
+    tasks in the run complete.
+    """
+
+    validate_run_status(status)
+    if status == "failed" and not error_message:
+        raise ValueError("failed run status requires error_message")
+
+    active_connection = connection or connect_database()
+
+    try:
+        with active_connection:
+            cursor = active_connection.execute(
+                """
+                UPDATE runs
+                SET
+                    status = :status,
+                    started_at = CASE
+                        WHEN :status = 'running' AND started_at IS NULL
+                        THEN datetime('now', 'localtime')
+                        ELSE started_at
+                    END,
+                    finished_at = CASE
+                        WHEN :status IN ('success', 'failed', 'cancelled')
+                        THEN datetime('now', 'localtime')
+                        ELSE finished_at
+                    END,
+                    error_message = CASE
+                        WHEN :status = 'failed' THEN :error_message
+                        WHEN :status IN ('success', 'cancelled') THEN NULL
+                        ELSE error_message
+                    END
+                WHERE run_id = :run_id
+                """,
+                {
+                    "run_id": run_id,
+                    "status": status,
+                    "error_message": error_message,
+                },
+            )
+
+            if cursor.rowcount != 1:
+                raise ValueError(f"run not found: {run_id}")
+    finally:
+        if connection is None:
+            active_connection.close()
+
+
+def mark_run_running(
+    run_id: str,
+    connection: sqlite3.Connection | None = None,
+) -> None:
+    """Mark a run as running."""
+
+    update_run_status(run_id=run_id, status="running", connection=connection)
+
+
+def mark_run_success(
+    run_id: str,
+    connection: sqlite3.Connection | None = None,
+) -> None:
+    """Mark a run as successful."""
+
+    update_run_status(run_id=run_id, status="success", connection=connection)
+
+
+def mark_run_failed(
+    run_id: str,
+    error_message: str,
+    connection: sqlite3.Connection | None = None,
+) -> None:
+    """Mark a run as failed with a user-facing error summary."""
+
+    update_run_status(
+        run_id=run_id,
+        status="failed",
+        error_message=error_message,
+        connection=connection,
+    )
+
+
+def mark_run_cancelled(
+    run_id: str,
+    connection: sqlite3.Connection | None = None,
+) -> None:
+    """Mark a run as cancelled."""
+
+    update_run_status(run_id=run_id, status="cancelled", connection=connection)
+
+
+def mark_run_failed_with_exception(
+    *,
+    run_id: str,
+    module: str,
+    error: BaseException,
+    error_summary: str,
+    file_name: LogFileName = "worker.log",
+    trade_date: str | None = None,
+    context: dict[str, object] | None = None,
+    connection: sqlite3.Connection | None = None,
+) -> None:
+    """Write detailed exception logs and store only a short DB summary."""
+
+    log_exception(
+        file_name=file_name,
+        module=module,
+        message=error_summary,
+        error=error,
+        run_id=run_id,
+        trade_date=trade_date,
+        context=context,
+    )
+    mark_run_failed(run_id, error_summary, connection=connection)
