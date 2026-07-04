@@ -23,18 +23,17 @@ from app.worker.src.watchlist.manager import (
     upsert_watchlist,
 )
 from app.worker.src.tasks import (
-    create_task,
     mark_task_failed,
-    mark_task_running,
     mark_task_success,
 )
 from app.worker.src.loggers import write_json_log
 from app.worker.src.utils import get_latest_trading_date
+from app.worker.src.utils.arg_utils import resolve_task_id
 from app.shared.paths import load_config
 
 
 def _new_task_id() -> str:
-    ts = datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y%m%d_%H%M%S_%f")
     return f"update_watchlist_{ts}"
 
 
@@ -65,22 +64,20 @@ def _count_trading_days_from_entry(
 
 
 def main() -> int:
-    task_id = _new_task_id()
     config = load_config()
 
     with database_connection() as connection:
+        task_id, is_external = resolve_task_id("update_watchlist", connection, _new_task_id)
         trade_date = get_latest_trading_date(connection)
         if trade_date is None:
             print("no data", file=sys.stderr)
             return 1
 
-        create_task(task_id=task_id, task_name="update_watchlist", connection=connection)
-        mark_task_running(task_id, connection=connection)
-
         run_row = connection.execute(
-            "SELECT run_id FROM recommendations ORDER BY created_at DESC LIMIT 1"
+            "SELECT run_id FROM runs WHERE status = 'success' ORDER BY created_at DESC LIMIT 1"
         ).fetchone()
         if run_row is None:
+            if not is_external: mark_task_failed(task_id, "no recommendations found — run run_screening first")
             print("no recommendations", file=sys.stderr)
             return 1
         run_id = run_row["run_id"]
@@ -142,9 +139,9 @@ def main() -> int:
     try:
         with database_connection() as connection:
             written = upsert_watchlist(connection, tracking_rows)
-            mark_task_success(task_id, connection=connection)
+            if not is_external: mark_task_success(task_id, connection=connection)
     except Exception as error:
-        mark_task_failed(task_id, f"write failed: {error}")
+        if not is_external: mark_task_failed(task_id, f"write failed: {error}")
         print(f"write failed: {error}", file=sys.stderr)
         return 1
 

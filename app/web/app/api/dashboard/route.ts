@@ -42,8 +42,8 @@ export async function GET() {
       "SELECT rating, COUNT(*) AS cnt FROM recommendations WHERE run_id = ? GROUP BY rating",
       [runId],
     );
-    for (const r of tierRows as Record<string, number>[]) {
-      recAByRating[r.rating as string] = r.cnt;
+    for (const r of tierRows as { rating: string; cnt: number }[]) {
+      recAByRating[r.rating] = r.cnt;
     }
   }
 

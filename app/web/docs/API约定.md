@@ -10,12 +10,12 @@
 
 ```text
 GET  /api/dashboard
-POST /api/tasks/update-data
-POST /api/tasks/run-screening
-POST /api/tasks/generate-report
+POST /api/tasks/run (body: {"pipeline": "update-data"})
+POST /api/tasks/run (body: {"pipeline": "run-screening"})
+POST /api/tasks/run (body: {"pipeline": "generate-report"})
 GET  /api/tasks/:task_id
 GET  /api/runs/latest
-GET  /api/recommendations/today
+GET /api/recommendations
 GET  /api/stocks/:code
 GET  /api/watchlist
 POST /api/watchlist/:code/update-status
@@ -32,7 +32,7 @@ POST /api/settings
 ```text
 前端点击按钮
   ↓
-POST /api/tasks/update-data
+POST /api/tasks/run (body: {"pipeline": "update-data"})
   ↓
 API 创建 task_id 并立即返回
   ↓
@@ -80,6 +80,6 @@ API 创建 task_id 并立即返回
 
 - API 不直接返回大量历史行情，详情页按需获取。
 - API 需要返回最近一次成功的 `run_id`。
-- `/api/recommendations/today` 默认读取最近一次成功 `run_id`，不是简单按自然日读取。
+- `/api/recommendations` 默认读取最近一次成功 `run_id`，不是简单按自然日读取。
 - 如果没有成功运行结果，前端显示空状态。
 - AI 报告失败时，推荐列表仍然正常展示。

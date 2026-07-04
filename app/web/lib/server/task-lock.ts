@@ -22,7 +22,7 @@ export function findRunningWriteTask(): string | null {
   try {
     const row = db
       .prepare(
-        "SELECT task_name FROM system_tasks WHERE status = 'running' LIMIT 1",
+        "SELECT task_name FROM system_tasks WHERE status IN ('pending', 'running') LIMIT 1",
       )
       .get() as { task_name: string } | undefined;
     return row?.task_name ?? null;

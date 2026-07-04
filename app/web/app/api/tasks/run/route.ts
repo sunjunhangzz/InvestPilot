@@ -8,6 +8,7 @@
  */
 import { NextRequest } from "next/server";
 import Database from "better-sqlite3";
+import crypto from "node:crypto";
 import { ok, fail } from "@/lib/server/api-response";
 import { getConfigPaths } from "@shared/paths";
 import { findRunningWriteTask, createTaskRecord } from "@/lib/server/task-lock";
@@ -21,12 +22,7 @@ const PIPELINES: Record<string, string[]> = {
 };
 
 function generateTaskId(): string {
-  const now = new Date();
-  const ts = now
-    .toLocaleString("sv-SE", { timeZone: "Asia/Shanghai" })
-    .replace(/[- :]/g, "")
-    .slice(0, 15);
-  return `web_${ts}`;
+  return `web_${crypto.randomUUID()}`;
 }
 
 export async function POST(request: NextRequest) {
@@ -74,8 +70,18 @@ export async function POST(request: NextRequest) {
   });
 
   // Fire-and-forget: don't await the worker — the frontend polls status.
-  runWorkers(scripts)
+  runWorkers(scripts, taskId)
     .then(({ success }) => {
+      const db = new Database(dbPath);
+      try {
+        db.prepare(
+          success
+            ? "UPDATE system_tasks SET status='success', finished_at=datetime('now','localtime') WHERE task_id=?"
+            : "UPDATE system_tasks SET status='failed', error_message='pipeline script returned non-zero', finished_at=datetime('now','localtime') WHERE task_id=?"
+        ).run(taskId);
+      } finally {
+        db.close();
+      }
       writeApiLog({
         level: success ? "INFO" : "ERROR",
         module: "tasks_run",
@@ -84,6 +90,14 @@ export async function POST(request: NextRequest) {
       });
     })
     .catch((err) => {
+      const db = new Database(dbPath);
+      try {
+        db.prepare(
+          "UPDATE system_tasks SET status='failed', error_message=?, finished_at=datetime('now','localtime') WHERE task_id=?"
+        ).run(`pipeline crashed: ${String(err)}`, taskId);
+      } finally {
+        db.close();
+      }
       writeApiLog({
         level: "ERROR",
         module: "tasks_run",

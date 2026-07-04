@@ -140,12 +140,12 @@ AI：DeepSeek API 优先，保留 Provider 抽象
 
 ```text
 GET  /api/dashboard
-POST /api/tasks/update-data
-POST /api/tasks/run-screening
-POST /api/tasks/generate-report
+POST /api/tasks/run (body: {"pipeline": "update-data"})
+POST /api/tasks/run (body: {"pipeline": "run-screening"})
+POST /api/tasks/run (body: {"pipeline": "generate-report"})
 GET  /api/tasks/:task_id
 GET  /api/runs/latest
-GET  /api/recommendations/today
+GET /api/recommendations
 GET  /api/stocks/:code
 GET  /api/watchlist
 POST /api/watchlist/:code/update-status

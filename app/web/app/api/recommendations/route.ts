@@ -13,7 +13,7 @@ export async function GET() {
             r.reason, r.risk_tags, r.trade_date
      FROM recommendations r
      JOIN stocks s ON s.code = r.code
-     WHERE r.run_id = (SELECT run_id FROM recommendations ORDER BY created_at DESC LIMIT 1)
+     WHERE r.run_id = (SELECT run_id FROM runs WHERE status = 'success' ORDER BY created_at DESC LIMIT 1)
      ORDER BY r.rank`,
   );
 

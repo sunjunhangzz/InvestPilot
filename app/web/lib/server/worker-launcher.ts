@@ -23,7 +23,10 @@ export type WorkerResult = {
   stderr: string;
 };
 
-export function runWorker(scriptKey: string): Promise<WorkerResult> {
+export function runWorker(
+  scriptKey: string,
+  taskId?: string,
+): Promise<WorkerResult> {
   const relativePath = SCRIPT_MAP[scriptKey];
   if (!relativePath) {
     return Promise.reject(new Error(`unknown worker script: ${scriptKey}`));
@@ -31,9 +34,13 @@ export function runWorker(scriptKey: string): Promise<WorkerResult> {
 
   const scriptPath = `${PROJECT_ROOT}/${relativePath}`;
   const venvPython = `${PROJECT_ROOT}/app/worker/.venv/bin/python3`;
+  const args = [scriptPath];
+  if (taskId) {
+    args.push("--task-id", taskId);
+  }
 
   return new Promise((resolve, reject) => {
-    const proc = spawn(venvPython, [scriptPath], {
+    const proc = spawn(venvPython, args, {
       cwd: PROJECT_ROOT,
       env: { ...process.env },
     });
@@ -54,10 +61,11 @@ export function runWorker(scriptKey: string): Promise<WorkerResult> {
 
 export async function runWorkers(
   scriptKeys: string[],
+  taskId?: string,
 ): Promise<{ success: boolean; results: WorkerResult[] }> {
   const results: WorkerResult[] = [];
   for (const key of scriptKeys) {
-    const result = await runWorker(key);
+    const result = await runWorker(key, taskId);
     results.push(result);
     if (result.exitCode !== 0) {
       return { success: false, results };

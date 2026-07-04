@@ -22,20 +22,19 @@ from app.worker.src.db import database_connection
 from app.worker.src.factors.indicators import avg_amount, ma, return_pct
 from app.worker.src.screening.filters import apply_filters
 from app.worker.src.tasks import (
-    create_task,
     mark_run_running,
     mark_run_success,
     mark_task_failed,
-    mark_task_running,
     mark_task_success,
 )
 from app.worker.src.loggers import write_json_log
 from app.worker.src.utils import get_latest_trading_date
+from app.worker.src.utils.arg_utils import resolve_task_id
 from app.shared.paths import load_config
 
 
 def _new_task_id() -> str:
-    ts = datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y%m%d_%H%M%S_%f")
     return f"run_screening_{ts}"
 
 
@@ -122,7 +121,6 @@ def _upsert_recommendations(connection, rows: list[dict]) -> int:
 
 
 def main() -> int:
-    task_id = _new_task_id()
     config = load_config()
 
     with database_connection() as connection:
@@ -147,13 +145,7 @@ def main() -> int:
 
         run_id = run_row["run_id"]
 
-        create_task(
-            task_id=task_id,
-            task_name="run_screening",
-            run_id=run_id,
-            connection=connection,
-        )
-        mark_task_running(task_id, connection=connection)
+        task_id, is_external = resolve_task_id("run_screening", connection, _new_task_id)
         mark_run_running(run_id, connection=connection)
 
         # Load data.
@@ -233,6 +225,13 @@ def main() -> int:
     # --- filter ---
     passed, rejected = apply_filters(stocks_list, prices, factors_map, config)
 
+    if len(passed) < config["minRecommendationLimit"]:
+        write_json_log(
+            file_name="screening.log", level="WARN", module="run_screening",
+            task_id=task_id, run_id=run_id, trade_date=trade_date,
+            message=f"only {len(passed)} stocks passed filters (min {config['minRecommendationLimit']})",
+        )
+
     # --- rank ---
     passed.sort(key=lambda s: factors_map[s["code"]]["total_score"], reverse=True)
 
@@ -249,7 +248,7 @@ def main() -> int:
         elif idx < limit:
             rating = "B"
         else:
-            rating = "C"
+            break  # C-tier: stop writing, keep recommendation count within limit
 
         today_str = trade_date
         rec = {
@@ -271,10 +270,10 @@ def main() -> int:
     try:
         with database_connection() as connection:
             written = _upsert_recommendations(connection, recommendations)
-            mark_task_success(task_id, connection=connection)
+            if not is_external: mark_task_success(task_id, connection=connection)
             mark_run_success(run_id, connection=connection)
     except Exception as error:
-        mark_task_failed(task_id, f"write failed: {error}")
+        if not is_external: mark_task_failed(task_id, f"write failed: {error}")
         print(f"write failed: {error}", file=sys.stderr)
         return 1
 

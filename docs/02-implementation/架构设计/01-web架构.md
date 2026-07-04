@@ -56,13 +56,13 @@ settings
 ## API Routes
 
 ```text
-POST /api/tasks/update-data
-POST /api/tasks/run-screening
-POST /api/tasks/generate-report
+POST /api/tasks/run (body: {"pipeline": "update-data"})
+POST /api/tasks/run (body: {"pipeline": "run-screening"})
+POST /api/tasks/run (body: {"pipeline": "generate-report"})
 GET  /api/tasks/:task_id
 GET  /api/runs/latest
 GET  /api/dashboard
-GET  /api/recommendations/today
+GET /api/recommendations
 GET  /api/stocks/:code
 GET  /api/watchlist
 GET  /api/settings

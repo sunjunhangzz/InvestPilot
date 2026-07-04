@@ -56,22 +56,24 @@
 
 开发内容：
 
-- `POST /api/tasks/update-data`
-- `POST /api/tasks/run-screening`
-- `POST /api/tasks/generate-report`
-- `update-data` 第一版是组合任务，串行调用：
-  - `update_stocks.py`
-  - `update_prices.py`
-- `run-screening` 第一版是组合任务，串行调用：
-  - `calc_factors.py`
-  - `run_screening.py`
-  - `update_watchlist.py`
+- `POST /api/tasks/run` — 统一 pipeline 入口，body: `{ "pipeline": "update-data" | "run-screening" | "generate-report" }`
+  - `update-data`：串行调用 `update_stocks.py` → `update_prices.py`
+  - `run-screening`：串行调用 `calc_factors.py` → `run_screening.py` → `update_watchlist.py`
+  - `generate-report`：预留（07 阶段实现）
+- `GET /api/tasks/:taskId` — 查询任务状态
+- `GET /api/runs/latest` — 最新成功 run
+- `GET /api/recommendations` — 最新推荐列表
+- `GET /api/stocks/:code` — 股票详情
+- `GET /api/watchlist` — 观察池
+- `GET /api/settings` / `POST /api/settings` — 系统设置
+- `GET /api/dashboard` — 仪表盘汇总
 
 验收标准：
 
-- 接口立即返回 `task_id`。
+- 接口立即返回 `task_id`（异步执行）。
 - 不等待 Python 长时间执行完成。
-- 任务状态写入 `system_tasks`。
+- Web 层在 pipeline 结束后统一将 task 标记为 success/failed。
+- Worker 脚本在 --task-id 模式下不独立标记任务状态，避免多脚本重复覆盖。
 
 风险点：
 
@@ -149,7 +151,7 @@
 
 - `GET /api/runs/latest`
 - `GET /api/dashboard`
-- `GET /api/recommendations/today`
+- `GET /api/recommendations`
 - `GET /api/stocks/:code`
 - `GET /api/watchlist`
 - `GET /api/settings`

@@ -35,19 +35,18 @@ from app.worker.src.factors.scoring import (
 )
 from app.worker.src.tasks import (
     create_run,
-    create_task,
     mark_run_running,
     mark_run_success,
     mark_task_failed,
-    mark_task_running,
     mark_task_success,
 )
 from app.worker.src.loggers import write_json_log
 from app.worker.src.utils import get_latest_trading_date
+from app.worker.src.utils.arg_utils import resolve_task_id
 
 
 def _new_task_id() -> str:
-    ts = datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y%m%d_%H%M%S_%f")
     return f"calc_factors_{ts}"
 
 
@@ -109,13 +108,13 @@ def _upsert_factors(connection, rows: list[dict]) -> int:
 
 
 def main() -> int:
-    task_id = _new_task_id()
-
     with database_connection() as connection:
         trade_date = get_latest_trading_date(connection)
         if trade_date is None:
             print("no price data — run update_prices first", file=sys.stderr)
             return 1
+
+        task_id, is_external = resolve_task_id("calc_factors", connection, _new_task_id)
 
         run_id = create_run(
             run_type="manual",
@@ -123,13 +122,6 @@ def main() -> int:
             status="running",
             connection=connection,
         )
-        create_task(
-            task_id=task_id,
-            task_name="calc_factors",
-            run_id=run_id,
-            connection=connection,
-        )
-        mark_task_running(task_id, connection=connection)
         mark_run_running(run_id, connection=connection)
 
         prices = _load_prices(connection, trade_date)
@@ -192,10 +184,10 @@ def main() -> int:
     try:
         with database_connection() as connection:
             written = _upsert_factors(connection, factor_rows)
-            mark_task_success(task_id, connection=connection)
-            mark_run_success(run_id, connection=connection)
+            if not is_external: mark_task_success(task_id, connection=connection)
+            if not is_external: mark_run_success(run_id, connection=connection)
     except Exception as error:
-        mark_task_failed(task_id, f"factor write failed: {error}")
+        if not is_external: mark_task_failed(task_id, f"factor write failed: {error}")
         print(f"write failed: {error}", file=sys.stderr)
         return 1
 
