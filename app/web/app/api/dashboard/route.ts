@@ -6,11 +6,22 @@
  * - today's recommendation count
  * - watchlist summary
  * - latest task status
+ *
+ * Also performs a one-time cleanup of stale "running" tasks left behind
+ * after a server restart.
  */
 import { ok } from "@/lib/server/api-response";
 import { queryOne, queryAll } from "@/lib/server/db";
+import { cleanupStaleTasks } from "@/lib/server/task-lock";
+
+let cleanedUp = false;
 
 export async function GET() {
+  if (!cleanedUp) {
+    cleanedUp = true;
+    cleanupStaleTasks();
+  }
+
   const latestRun = queryOne(
     `SELECT run_id, trade_date, status, started_at, finished_at
      FROM runs WHERE status = 'success'
