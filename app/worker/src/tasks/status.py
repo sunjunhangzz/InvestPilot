@@ -6,9 +6,11 @@ import sqlite3
 from typing import Literal
 
 from app.worker.src.db import connect_database
+from app.worker.src.loggers import LogFileName, log_exception
 
 
 TaskStatus = Literal["pending", "running", "success", "failed", "cancelled"]
+MAX_ERROR_SUMMARY_LENGTH = 300
 
 VALID_TASK_STATUSES: set[str] = {
     "pending",
@@ -24,6 +26,23 @@ def validate_task_status(status: str) -> None:
 
     if status not in VALID_TASK_STATUSES:
         raise ValueError(f"invalid task status: {status}")
+
+
+def normalize_error_summary(error_message: str) -> str:
+    """Return a short user-facing task error summary.
+
+    Detailed exception context belongs in `data/logs/*.log`; the database keeps a
+    concise message so task pages stay readable and do not expose internals.
+    """
+
+    summary = " ".join(error_message.strip().split())
+    if not summary:
+        raise ValueError("failed task status requires error_message")
+
+    if len(summary) <= MAX_ERROR_SUMMARY_LENGTH:
+        return summary
+
+    return f"{summary[: MAX_ERROR_SUMMARY_LENGTH - 3]}..."
 
 
 def create_task(
@@ -86,6 +105,8 @@ def update_task_status(
     validate_task_status(status)
     if status == "failed" and not error_message:
         raise ValueError("failed task status requires error_message")
+    if status == "failed" and error_message is not None:
+        error_message = normalize_error_summary(error_message)
 
     active_connection = connection or connect_database()
 
@@ -158,6 +179,33 @@ def mark_task_failed(
         error_message=error_message,
         connection=connection,
     )
+
+
+def mark_task_failed_with_exception(
+    *,
+    task_id: str,
+    module: str,
+    error: BaseException,
+    error_summary: str,
+    file_name: LogFileName = "worker.log",
+    run_id: str | None = None,
+    trade_date: str | None = None,
+    context: dict[str, object] | None = None,
+    connection: sqlite3.Connection | None = None,
+) -> None:
+    """Write detailed exception logs and store only a short DB summary."""
+
+    log_exception(
+        file_name=file_name,
+        module=module,
+        message=error_summary,
+        error=error,
+        task_id=task_id,
+        run_id=run_id,
+        trade_date=trade_date,
+        context=context,
+    )
+    mark_task_failed(task_id, error_summary, connection=connection)
 
 
 def mark_task_cancelled(
