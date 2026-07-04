@@ -12,6 +12,8 @@
 app/shared/
   config.json
   schema.json
+  paths.py
+  paths.ts
   README.md
   docs/
 ```
@@ -87,6 +89,13 @@ A股AI投研系统/
 web 和 worker 必须先定位项目根目录，再解析这些路径。
 
 禁止从当前工作目录直接拼接相对路径，因为 Next.js、Python 脚本和测试的工作目录可能不同。
+
+统一路径解析入口：
+
+```text
+app/shared/paths.py
+app/shared/paths.ts
+```
 
 ## 版本演进
 

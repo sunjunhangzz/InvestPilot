@@ -19,12 +19,14 @@
 ```text
 config.json
 schema.json
+paths.py
+paths.ts
 ```
 
 ## 原则
 
 - TS 和 Python 都从这里读取公共配置。
 - 不在代码里硬编码数据库路径。
+- 所有相对路径都通过 `paths.py` / `paths.ts` 按项目根目录解析。
 - 字段命名保持一致。
 - 策略参数修改要有记录。
-
