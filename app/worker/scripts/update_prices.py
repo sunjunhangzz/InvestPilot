@@ -1,7 +1,9 @@
-"""Fetch daily prices for all main-board stocks and write to daily_prices.
+"""Fetch daily prices for main-board stocks and write to daily_prices.
 
 Usage:
-    python app/worker/scripts/update_prices.py
+    python app/worker/scripts/update_prices.py               # all main-board
+    python app/worker/scripts/update_prices.py --codes 000001,600519  # specific
+    python app/worker/scripts/update_prices.py --retry-failed          # retry
 
 The script fetches ~120 trading days per stock (qfq adjust), handles per-stock
 failures gracefully, and uses UPSERT to avoid overwriting existing data.
@@ -9,6 +11,7 @@ failures gracefully, and uses UPSERT to avoid overwriting existing data.
 
 from __future__ import annotations
 
+import json
 import sys
 import time
 from datetime import date, datetime, timedelta
@@ -32,6 +35,7 @@ from app.worker.src.tasks import (
     mark_task_success,
 )
 from app.worker.src.loggers import write_json_log
+from app.shared.paths import get_config_paths
 
 
 # Number of calendar days to look back.  180 calendar days ≈ 120 trading days
@@ -58,15 +62,114 @@ def _get_main_board_codes(connection) -> list[str]:
     return [row["code"] for row in rows]
 
 
-def main() -> int:
+def _get_failed_codes_from_last_run() -> list[str]:
+    """Parse data_source.log for failed codes from the most recent update_prices run.
+
+    Returns an empty list when no prior run is found or parsing fails.
+    """
+
+    logs_dir = get_config_paths()["logsPath"]
+    log_path = logs_dir / "data_source.log"
+    if not log_path.exists():
+        return []
+
+    failed_codes: list[str] = []
+    # Walk backwards through the log to find the most recent "start batch" →
+    # "complete" range, then collect all WARN/ERROR lines with a code.
+    try:
+        lines = log_path.read_text(encoding="utf-8").strip().splitlines()
+    except OSError:
+        return []
+
+    # Find the last "batch price fetch complete" line.
+    last_complete_idx = -1
+    for i in range(len(lines) - 1, -1, -1):
+        try:
+            record = json.loads(lines[i])
+        except json.JSONDecodeError:
+            continue
+        if record.get("message") == "batch price fetch complete":
+            last_complete_idx = i
+            break
+
+    if last_complete_idx < 0:
+        return []
+
+    # Walk backward from the complete line to find "start batch price fetch".
+    start_idx = -1
+    for i in range(last_complete_idx, -1, -1):
+        try:
+            record = json.loads(lines[i])
+        except json.JSONDecodeError:
+            continue
+        if record.get("message") == "start batch price fetch":
+            start_idx = i
+            break
+
+    if start_idx < 0:
+        return []
+
+    # Collect failed codes between start and complete.
+    for i in range(start_idx, last_complete_idx + 1):
+        try:
+            record = json.loads(lines[i])
+        except json.JSONDecodeError:
+            continue
+        ctx = record.get("context")
+        if isinstance(ctx, dict) and "code" in ctx:
+            level = record.get("level", "")
+            msg = record.get("message", "")
+            if level in ("WARN", "ERROR") and ("failed" in msg or "empty" in msg):
+                failed_codes.append(ctx["code"])
+
+    return failed_codes
+
+
+def _parse_args(argv: list[str]) -> tuple[list[str] | None, bool]:
+    """Return (codes, is_retry) from CLI arguments.
+
+    codes=None means process all main-board stocks.
+    """
+
+    codes: list[str] | None = None
+    retry_failed = False
+
+    for arg in argv[1:]:
+        if arg == "--retry-failed":
+            retry_failed = True
+        elif arg.startswith("--codes="):
+            codes = arg.split("=", 1)[1].split(",")
+
+    if retry_failed and codes is None:
+        codes = _get_failed_codes_from_last_run()
+        if not codes:
+            print("no failed codes found in last run", file=sys.stderr)
+            sys.exit(0)
+
+    return codes, retry_failed
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Fetch stock prices and write to SQLite."""
+
+    if argv is None:
+        argv = sys.argv
+
+    specific_codes, retry_failed = _parse_args(argv)
     task_id = _new_task_id()
     start_date = (date.today() - timedelta(days=LOOKBACK_DAYS)).isoformat()
     end_date = date.today().isoformat()
 
     with database_connection() as connection:
-        create_task(task_id=task_id, task_name="update_prices", connection=connection)
+        if specific_codes is not None:
+            codes = specific_codes
+            task_name = "update_prices_retry" if retry_failed else "update_prices_codes"
+        else:
+            codes = _get_main_board_codes(connection)
+            task_name = "update_prices"
+
+        create_task(task_id=task_id, task_name=task_name, connection=connection)
         mark_task_running(task_id, connection=connection)
-        codes = _get_main_board_codes(connection)
 
     write_json_log(
         file_name="data_source.log",
@@ -79,6 +182,7 @@ def main() -> int:
             "start_date": start_date,
             "end_date": end_date,
             "adjust": "qfq",
+            "retry_failed": retry_failed,
         },
     )
 
