@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node / frontend
+node_modules/
+.next/
+dist/
+build/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Local runtime data
+data/cache/*
+data/logs/*
+data/raw/*
+data/*.sqlite
+data/*.sqlite-*
+reports/daily/*
+reports/stock/*
+backups/database/*
+backups/config/*
+
+# Keep planned directory structure
+!data/cache/.gitkeep
+!data/logs/.gitkeep
+!data/raw/.gitkeep
+!reports/daily/.gitkeep
+!reports/stock/.gitkeep
+!backups/database/.gitkeep
+!backups/config/.gitkeep
+
+# macOS
+.DS_Store

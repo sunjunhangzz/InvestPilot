@@ -1,0 +1,28 @@
+{
+  "databasePath": "data/a_stock_research.sqlite",
+  "reportsPath": "reports",
+  "logsPath": "data/logs",
+  "rawDataPath": "data/raw",
+  "cachePath": "data/cache",
+  "recommendationLimit": 50,
+  "minRecommendationLimit": 10,
+  "minTrackingDays": 5,
+  "maxTrackingDays": 20,
+  "factorWeights": {
+    "trend": 0.35,
+    "momentum": 0.25,
+    "liquidity": 0.2,
+    "risk": 0.2
+  },
+  "filters": {
+    "minListingDays": 180,
+    "minAverageAmount20d": 100000000,
+    "minPrice": 3,
+    "maxPrice": 300
+  },
+  "ai": {
+    "enabled": false,
+    "provider": "deepseek",
+    "model": "deepseek-v4-flash"
+  }
+}

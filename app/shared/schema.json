@@ -1,0 +1,8 @@
+{
+  "runStatus": ["pending", "running", "success", "failed", "cancelled"],
+  "runType": ["manual", "morning", "afternoon", "scheduled"],
+  "watchlistStatus": ["active", "hold", "downgraded", "exit", "blocked"],
+  "recommendationRating": ["A", "B", "C"],
+  "reportType": ["basic", "stock", "daily"]
+}
+
