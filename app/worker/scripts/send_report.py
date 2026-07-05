@@ -185,7 +185,8 @@ def _build_morning_md() -> str | None:
             for b in breached[:5]:
                 lines.append(f"- {b}")
 
-    committee = c.execute("SELECT code, rating, consensus FROM agent_reports WHERE run_id=? ORDER BY rating DESC LIMIT 5", (run["run_id"],)).fetchall()
+    with database_connection() as cd:
+        committee = cd.execute("SELECT code, rating, consensus FROM agent_reports WHERE run_id=? ORDER BY rating DESC LIMIT 5", (run["run_id"],)).fetchall()
     if committee:
         lines.append("")
         lines.append("### Agent 委员会评级")
@@ -193,7 +194,8 @@ def _build_morning_md() -> str | None:
             e = "GREEN" if cr["rating"] >= 4 else "YELLOW" if cr["rating"] >= 3 else "RED"
             lines.append(f"{e} {cr['code']} 评级={cr['rating']} 共识={cr['consensus']}")
     # Agent committee — round 3 web evidence.
-    committee = c.execute("SELECT code, rating, consensus FROM agent_reports WHERE run_id=? ORDER BY rating DESC", (run["run_id"],)).fetchall()
+    with database_connection() as cd:
+        committee = cd.execute("SELECT code, rating, consensus FROM agent_reports WHERE run_id=? ORDER BY rating DESC", (run["run_id"],)).fetchall()
     if committee:
         lines.append("")
         lines.append("### 辩论·第3轮网络搜索证据（前10只）")
