@@ -77,7 +77,7 @@ def _agent_call(agent_key: str, context: str, others: str = "") -> dict[str, Any
     return _parse_json(result)
 
 
-def _search_context(code: str, name: str, industry: str | None) -> dict[str, list[dict[str, str]]]:
+def _search_context(code: str, name: str, industry: str | None) -> dict[str, dict]:
     queries = {
         "tech": f"{name} {code} 技术分析 走势",
         "fund": f"{name} {code} 营收 利润 ROE 财报",
@@ -85,9 +85,9 @@ def _search_context(code: str, name: str, industry: str | None) -> dict[str, lis
         "value": f"{name} {code} PE PB 估值 目标价",
         "sector": f"{name} {code} 行业 {industry or ''} 竞争 排名",
     }
-    results: dict[str, list[dict[str, str]]] = {}
+    results: dict[str, dict] = {}
     for key, q in queries.items():
-        results[key] = search_web(q)
+        results[key] = {"query": q, "hits": search_web(q)}
     return results
 
 
@@ -134,23 +134,23 @@ def debate_stock(
                        message=f"R2 {key} for {code}", context={"rating": result["rating"]})
     history.append({"round": 2, "results": round2})
 
-    # Round 3: Web evidence (all 10 stocks).
+    # Round 3: Web evidence.
     search_results = _search_context(code, name, industry)
     round3: dict[str, dict[str, Any]] = {}
+    search_log: dict[str, dict] = {}
     for key in AGENTS:
+        sr = search_results.get(key, {"query": "", "hits": []})
+        search_log[key] = {"query": sr["query"], "hits": sr["hits"]}
         web_evidence = ""
-        if search_results.get(key):
+        if sr["hits"]:
             web_evidence = "网络搜索证据：\n" + "\n".join(
-                f"- {r['title']}: {r['snippet']}" for r in search_results[key][:2]
+                f"- {h['title']}: {h['snippet']}" for h in sr["hits"][:2]
             )
         prompt = f"{ctx}\n{web_evidence}\n\n其他Agent第2轮意见：\n{round1_summary}"
         result = llm(prompt, system=AGENTS[key]["system"])
         if result:
             round3[key] = _parse_json(result)
-            write_json_log(file_name="ai.log", level="INFO", module="agent_committee",
-                           run_id=run_id, trade_date=trade_date,
-                           message=f"R3 {key} for {code}", context={"rating": round3[key]["rating"]})
-    history.append({"round": 3, "results": round3, "search": {k: len(v) for k, v in search_results.items()}})
+    history.append({"round": 3, "results": round3, "search": search_log})
 
     # Round 4: Group debate.
     pro_group = [k for k, r in round3.items() if r.get("rating", 3) >= 3]
@@ -224,8 +224,13 @@ def write_debate_report(debate: dict[str, Any], output_dir: str) -> str:
         rn = round_data["round"]
         lines.append(f"## 第{rn}轮")
         if "search" in round_data:
-            lines.append(f"_(网络搜索：{round_data['search']} 条结果)_")
             lines.append("")
+            for agent_key, sd in round_data["search"].items():
+                lines.append(f"**{AGENTS[agent_key]['name']}** 搜索：`{sd.get('query','')}`")
+                for h in sd.get('hits', []):
+                    lines.append(f"  - [{h['title']}]({h['url']})")
+                    lines.append(f"    {h['snippet']}")
+                lines.append("")
         if "groups" in round_data:
             lines.append(f"看多组：{', '.join(round_data['groups']['pro'])}")
             lines.append(f"看空组：{', '.join(round_data['groups']['con'])}")
