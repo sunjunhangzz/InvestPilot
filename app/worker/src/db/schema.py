@@ -191,6 +191,25 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
             connection.execute(statement)
 
         connection.execute(FUNDAMENTALS_TABLE)
+        connection.execute(AGENT_REPORTS_TABLE)
 
         for statement in INDEX_STATEMENTS:
             connection.execute(statement)
+
+AGENT_REPORTS_TABLE = """
+    CREATE TABLE IF NOT EXISTS agent_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        run_id TEXT NOT NULL,
+        code TEXT NOT NULL,
+        trade_date TEXT NOT NULL,
+        rating INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),
+        consensus TEXT NOT NULL,
+        debate_history TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        model_name TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+        UNIQUE(run_id, code),
+        FOREIGN KEY (run_id) REFERENCES runs(run_id),
+        FOREIGN KEY (code) REFERENCES stocks(code)
+    )
+"""

@@ -36,6 +36,11 @@ def _new_task_id() -> str:
 
 
 def main() -> int:
+    mode = "single"
+    for arg in sys.argv[1:]:
+        if arg.startswith("--mode="):
+            mode = arg.split("=", 1)[1]
+
     with database_connection() as connection:
         task_id, is_external = resolve_task_id("generate_report", connection, _new_task_id)
 
@@ -77,6 +82,12 @@ def main() -> int:
         ).fetchall()
         factors_map = {r["code"]: dict(r) for r in factor_rows}
 
+    # Load fundamentals for committee mode.
+    fund_map: dict[str, dict] = {}
+    with database_connection() as fconn:
+        for fr in fconn.execute("SELECT * FROM fundamentals").fetchall():
+            fund_map[fr["code"]] = dict(fr)
+
     reports: list[dict] = []
     success = 0
     failed = 0
@@ -117,6 +128,60 @@ def main() -> int:
     )
 
     print(f"reports: {success} ok, {failed} failed")
+
+    # --- Agent committee (--mode=committee) ---
+    if mode == "committee" and is_ai_enabled():
+        print()
+        print("=== Agent 委员会辩论 ===")
+        from app.worker.src.reports.agents import debate_stock, write_debate_report
+        import os
+
+        # Only top-10 by rank for committee.
+        committee_recs = [r for r in rec_rows if r["rank"] <= 10]
+        print(f"Evaluating {len(committee_recs)} stocks...")
+
+        committee_results = []
+        output_dir = os.path.join(PROJECT_ROOT, "reports", "debates", str(rec_rows[0]["trade_date"]))
+        for rec in committee_recs:
+            code = rec["code"]
+            stock = {"code": code, "name": rec["name"], "board": rec["board"]}
+            factors = factors_map.get(code)
+            fund = fund_map.get(code) if 'fund_map' in dir() else None
+            industry = (rec.get("industry") or
+                        (fund.get("industry") if fund else None) or
+                        (c.execute("SELECT industry FROM stocks WHERE code=?", (code,)).fetchone() or {}).get("industry"))
+
+            try:
+                result = debate_stock(code, rec["name"], factors or {}, fund, industry,
+                                      rec["run_id"], rec["trade_date"])
+                if result:
+                    committee_results.append(result)
+                    write_debate_report(result, output_dir)
+                    print(f"  {code}: rating={result['rating']} consensus={result['consensus']}")
+                else:
+                    print(f"  {code}: ✗ (AI disabled)")
+            except Exception as e:
+                print(f"  {code}: ✗ {e}")
+
+        if committee_results:
+            # Determine AI-A stocks (top 5 by rating, minimum 3 votes).
+            committee_results.sort(key=lambda x: (-x["rating"], -x["votes"].get("agree", 0)))
+            ai_a_codes = set()
+            for r in committee_results[:5]:
+                if r["votes"].get("agree", 0) >= 3:
+                    ai_a_codes.add(r["code"])
+
+            # Update recommendations with AI ratings.
+            with database_connection() as conn:
+                for r in committee_results:
+                    ai_grade = "AI-A" if r["code"] in ai_a_codes else "B"
+                    conn.execute(
+                        "UPDATE recommendations SET rating=? WHERE run_id=? AND code=?", 
+                        (ai_grade, r.get("run_id", rec_rows[0]["run_id"]), r["code"]),
+                    )
+                conn.commit()
+            print(f"AI-A: {len(ai_a_codes)} stocks")
+
     return 0
 
 
