@@ -21,24 +21,42 @@ def trend_score(
     ma20: float | None,
     ma60: float | None,
 ) -> float:
-    """Score trend strength based on moving-average alignment.
+    """Score trend strength based on MA alignment and distance.
 
-    - close > MA20 → bonus
-    - close > MA60 → bonus
+    - Close above MA → bonus (proportional to distance)
     - MA20 > MA60 → golden-cross bonus
+    - Distance from MA capped to avoid extreme scores.
     """
 
     if ma20 is None or ma60 is None:
         return 0.0
 
-    score = 50.0  # neutral baseline
+    score = 50.0
 
-    if close > ma20:
-        score += 20
-    if close > ma60:
-        score += 15
+    # Distance from MA20: 0% → +0, 5%+ → +20.
+    if ma20 > 0:
+        dist20 = (close - ma20) / ma20 * 100
+        if dist20 > 0:
+            score += min(dist20 / 5.0 * 20, 20)
+        else:
+            score += max(dist20 / 5.0 * 15, -15)
+
+    # Distance from MA60: 0% → +0, 10%+ → +15.
+    if ma60 > 0:
+        dist60 = (close - ma60) / ma60 * 100
+        if dist60 > 0:
+            score += min(dist60 / 10.0 * 15, 15)
+        else:
+            score += max(dist60 / 10.0 * 10, -10)
+
+    # Golden cross bonus: how far apart are MA20 and MA60?
     if ma20 > ma60:
-        score += 15
+        spread = (ma20 - ma60) / ma60 * 100
+        score += min(spread * 2, 15)
+    else:
+        # Death cross penalty.
+        spread = (ma60 - ma20) / ma60 * 100
+        score -= min(spread * 2, 15)
 
     return _clamp(score)
 
