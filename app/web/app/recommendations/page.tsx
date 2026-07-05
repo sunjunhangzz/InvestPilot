@@ -65,7 +65,7 @@ export default function RecommendationsPage() {
       {debateContent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDebateContent(null)}>
           <div className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-semibold">辩论报告 — {debateCode}</h3><button className="text-sm text-[var(--muted)]" onClick={() => setDebateContent(null)}>✕</button></div>
+            <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-semibold">辩论报告 — {debateCode}</h3><div className="flex items-center gap-2"><button className="text-sm text-[var(--accent)]" onClick={() => { navigator.clipboard.writeText(debateContent); alert("已复制到剪贴板"); }}>📋 复制</button><button className="text-sm text-[var(--accent)]" onClick={() => { const b=new Blob([debateContent],{type:"text/markdown"}); const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download="debate-"+debateCode+".md"; a.click(); }}>💾 下载</button><button className="text-sm text-[var(--muted)]" onClick={() => setDebateContent(null)}>✕</button></div></div>
             <pre className="whitespace-pre-wrap text-sm leading-relaxed">{debateContent}</pre>
           </div>
         </div>
