@@ -28,13 +28,13 @@ docs/05-standards/README.md
 docs/06-code-standards/README.md
 ```
 
-如果修改具体子项目，还必须阅读对应目录：
+如果修改具体子项目，还必须阅读对应目录的 AGENTS.md + docs：
 
 ```text
-app/web/docs/
-app/worker/docs/
-app/shared/docs/
-app/api/docs/
+app/web/AGENTS.md + app/web/docs/
+app/worker/AGENTS.md + app/worker/docs/
+app/shared/AGENTS.md + app/shared/docs/
+app/api/AGENTS.md + app/api/docs/
 ```
 
 ## 开发顺序
