@@ -338,6 +338,16 @@ def main() -> int:
     title = f"A股AI投研 — {'早盘' if report_type == 'morning' else '午间'}"
     success = _send(provider, token, content, title)
 
+    # Send per-stock debate round 3 as separate messages.
+    import os
+    with database_connection() as dc:
+        ac = dc.execute("SELECT code FROM agent_reports ORDER BY rating DESC").fetchall()
+    td = "2026-07-03"
+    for ar in ac:
+        r3t = _extract_round3(ar["code"], td)
+        if r3t:
+            _send(provider, token, r3t, f"A股 {ar['code']} 辩论第3轮")
+
     write_json_log(
         file_name="notification.log",
         level="INFO" if success else "ERROR",
