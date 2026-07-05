@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 
-type Rec = { code: string; name: string; rating: string; rank: number; totalScore: number; reason: string; riskTags: string; tradeDate: string };
+type Rec = {
+  code: string; name: string; rating: string; rank: number; totalScore: number;
+  trendScore: number; momentumScore: number; liquidityScore: number; riskScore: number;
+  close: number | null;
+  reason: string; riskTags: string; tradeDate: string;
+};
 
 export default function RecommendationsPage() {
   const [data, setData] = useState<Rec[] | null>(null);
@@ -39,8 +44,8 @@ export default function RecommendationsPage() {
   return (
     <AppShell>
       <section className="mx-auto max-w-7xl px-6 py-8"><h2 className="text-xl font-semibold">今日推荐</h2><p className="mt-2 text-sm text-[var(--muted)]">共 {recs.length} 只 · 交易日 {recs[0]?.tradeDate ?? "—"}</p>
-        <div className="mt-4 overflow-x-auto rounded-lg border border-[var(--line)] bg-white"><table className="w-full text-sm"><thead><tr className="border-b border-[var(--line)] bg-[var(--panel)] text-left text-[var(--muted)]"><th className="px-4 py-3 font-medium">评级</th><th className="px-4 py-3 font-medium">排名</th><th className="px-4 py-3 font-medium">代码</th><th className="px-4 py-3 font-medium">名称</th><th className="px-4 py-3 font-medium">评分</th><th className="px-4 py-3 font-medium">理由</th><th className="px-4 py-3 font-medium">风险</th></tr></thead><tbody>
-          {recs.map((r) => (<tr key={r.code} className="border-b border-[var(--line)] hover:bg-[var(--panel)]"><td className="px-4 py-3">{badge(r.rating)}</td><td className="px-4 py-3">{r.rank}</td><td className="px-4 py-3"><Link className="font-medium text-[var(--accent)] hover:underline" href={`/stocks/${r.code}`}>{r.code}</Link></td><td className="px-4 py-3">{r.name}</td><td className="px-4 py-3">{r.totalScore}</td><td className="px-4 py-3 max-w-xs truncate">{r.reason}</td><td className="px-4 py-3 text-[var(--muted)]">{r.riskTags || "—"}</td></tr>))}
+        <div className="mt-4 overflow-x-auto rounded-lg border border-[var(--line)] bg-white"><table className="w-full text-sm"><thead><tr className="border-b border-[var(--line)] bg-[var(--panel)] text-left text-[var(--muted)]"><th className="px-3 py-3 font-medium">评级</th><th className="px-3 py-3 font-medium">代码</th><th className="px-3 py-3 font-medium">名称</th><th className="px-3 py-3 font-medium">收盘价</th><th className="px-3 py-3 font-medium">趋势</th><th className="px-3 py-3 font-medium">动量</th><th className="px-3 py-3 font-medium">流动</th><th className="px-3 py-3 font-medium">风险</th><th className="px-3 py-3 font-medium">总分</th><th className="px-3 py-3 font-medium">理由</th><th className="px-3 py-3 font-medium">风险</th></tr></thead><tbody>
+          {recs.map((r) => (<tr key={r.code} className="border-b border-[var(--line)] hover:bg-[var(--panel)]"><td className="px-3 py-3">{badge(r.rating)}</td><td className="px-3 py-3"><Link className="font-medium text-[var(--accent)] hover:underline" href={`/stocks/${r.code}`}>{r.code}</Link></td><td className="px-3 py-3">{r.name}</td><td className="px-3 py-3">{r.close?.toFixed(2) ?? "—"}</td><td className="px-3 py-3">{r.trendScore?.toFixed(0) ?? "—"}</td><td className="px-3 py-3">{r.momentumScore?.toFixed(0) ?? "—"}</td><td className="px-3 py-3">{r.liquidityScore?.toFixed(0) ?? "—"}</td><td className="px-3 py-3">{r.riskScore?.toFixed(0) ?? "—"}</td><td className="px-3 py-3 font-semibold">{r.totalScore}</td><td className="px-3 py-3 max-w-xs truncate">{r.reason}</td><td className="px-3 py-3 text-xs text-[var(--muted)]">{r.riskTags || "—"}</td></tr>))}
         </tbody></table></div>
       </section>
     </AppShell>
