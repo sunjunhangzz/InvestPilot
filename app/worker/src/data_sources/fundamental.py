@@ -103,6 +103,6 @@ def _safe_float(val: Any) -> float | None:
         return None
     try:
         v = float(val)
-        return v if v != v else None  # NaN check
+        return None if v != v else v  # NaN check
     except (ValueError, TypeError):
         return None
