@@ -124,8 +124,8 @@ def _build_morning_md() -> str | None:
     for r in recs[:20]:  # Top 20 for readability.
         lines.append(
             f"| {r['rating']} | {r['code']} | {r['name']} | "
-            f"{r['trend_score'] or '-'} | {r['momentum_score'] or '-'} | "
-            f"{r['liquidity_score'] or '-'} | {r['risk_score'] or '-'} | "
+            f"{r['trend_score'] if r['trend_score'] is not None else '-'} | {r['momentum_score'] if r['momentum_score'] is not None else '-'} | "
+            f"{r['liquidity_score'] if r['liquidity_score'] is not None else '-'} | {r['risk_score'] if r['risk_score'] is not None else '-'} | "
             f"{r['total_score']} |"
         )
 
@@ -173,8 +173,8 @@ def _build_noon_md() -> str | None:
         if not run:
             return "## 📊 A股AI投研 — 午间\n\n今日暂无推荐数据。"
 
-        for t in ["recommendations", "watchlist"]:
-            rows = c.execute(f"SELECT DISTINCT code FROM {t}").fetchall()
+        for table_name in ("recommendations", "watchlist"):
+            rows = c.execute(f"SELECT DISTINCT code FROM {table_name}").fetchall()
             for r in rows:
                 if r["code"] not in codes:
                     codes.append(r["code"])
@@ -229,6 +229,27 @@ def _build_noon_md() -> str | None:
                 for code, name, chg in perf[:15]:
                     emoji = "🔴" if (chg or 0) > 0 else "🟢" if (chg or 0) < 0 else "⚪"
                     lines.append(f"{emoji} {code} {name} {chg:+.1f}%")
+
+        # Watchlist performance.
+        wl_rows = c.execute(
+            "SELECT w.code, s.name FROM watchlist w JOIN stocks s ON s.code=w.code ORDER BY w.first_recommended_date DESC"
+        ).fetchall()
+        wl_perf = []
+        for w in wl_rows:
+            row = c.execute(
+                "SELECT close FROM daily_prices WHERE code=? ORDER BY trade_date DESC LIMIT 2",
+                (w["code"],),
+            ).fetchall()
+            if len(row) >= 2 and row[0]["close"] and row[1]["close"]:
+                chg = (row[0]["close"] - row[1]["close"]) / row[1]["close"] * 100
+                wl_perf.append((w["code"], w["name"], round(chg, 2)))
+        if wl_perf:
+            wl_perf.sort(key=lambda x: -(x[2] or -999))
+            lines.append("")
+            lines.append("### 观察池·上午涨跌")
+            for code, name, chg in wl_perf[:10]:
+                emoji = "🔴" if (chg or 0) > 0 else "🟢" if (chg or 0) < 0 else "⚪"
+                lines.append(f"{emoji} {code} {name} {chg:+.1f}%")
 
     return "\n".join(lines)
 
