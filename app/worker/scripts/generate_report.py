@@ -37,6 +37,9 @@ def _new_task_id() -> str:
 
 def main() -> int:
     mode = "single"
+    # When called from Web (--task-id present), default to committee mode.
+    if any(a.startswith("--task-id") for a in sys.argv):
+        mode = "committee"
     for arg in sys.argv[1:]:
         if arg.startswith("--mode="):
             mode = arg.split("=", 1)[1]
