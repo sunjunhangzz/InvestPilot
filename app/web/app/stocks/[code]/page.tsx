@@ -22,6 +22,7 @@ export default function StockPage({ params }: Props) {
   const [data, setData] = useState<StockDetail | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [load, setLoad] = useState(true);
+  const [debateContent, setDebateContent] = useState<string | null>(null);
 
   useEffect(() => {
     let c = false;
@@ -31,6 +32,20 @@ export default function StockPage({ params }: Props) {
     }
     f(); return () => { c = true; };
   }, [code]);
+
+  const showDebate = async (c: string) => {
+    setDebateContent("加载中…");
+    try {
+      const r = await fetch("/api/debates?code=" + c);
+      const j = await r.json();
+      if (j.ok && j.data.length > 0) {
+        const latest = j.data[0];
+        const rr = await fetch("/api/debates?code=" + c + "&tradeDate=" + latest);
+        const jj = await rr.json();
+        setDebateContent(jj.ok ? jj.data.content : "无报告");
+      } else { setDebateContent("暂无辩论报告"); }
+    } catch { setDebateContent("加载失败"); }
+  };
 
   if (load) return <AppShell><section className="mx-auto max-w-7xl px-6 py-8"><h2 className="text-xl font-semibold">股票详情</h2><p className="mt-6 text-sm text-[var(--muted)]">加载中…</p></section></AppShell>;
   if (err) return <AppShell><section className="mx-auto max-w-7xl px-6 py-8"><h2 className="text-xl font-semibold">股票详情</h2><div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-6 text-sm text-red-700">{err}<button className="ml-4 underline" onClick={() => window.location.reload()} type="button">重试</button></div></section></AppShell>;
@@ -53,11 +68,22 @@ export default function StockPage({ params }: Props) {
         { l: "行业", v: data.fundamental.industry || "—" }, { l: "EPS", v: data.fundamental.eps?.toFixed(2) }
       ].map(s => (<div key={s.l} className="rounded-lg border border-[var(--line)] bg-white p-3"><p className="text-xs text-[var(--muted)]">{s.l}</p><p className="mt-1 text-sm font-semibold">{s.v ?? "—"}</p></div>))}</div></div>}
       {data.agentReport && <div className="mt-6"><h3 className="text-base font-semibold">🤖 Agent 委员会</h3><div className="mt-3 rounded-lg border border-[var(--line)] bg-white p-4">
-        <div className="flex items-center gap-3"><span className="text-2xl font-bold">{data.agentReport.rating}</span><span className="text-sm text-[var(--muted)]">/ 5 · 共识 {data.agentReport.consensus} · {data.agentReport.modelName}</span></div>
+        <div className="flex items-center gap-3"><span className="text-2xl font-bold">{data.agentReport.rating}</span><span className="text-sm text-[var(--muted)]">/ 5 分 · {data.agentReport.consensus === "unanimous" ? "全票通过" : data.agentReport.consensus === "majority" ? "多数同意" : data.agentReport.consensus === "split" ? "分歧" : "否决"} · {data.agentReport.modelName}</span></div>
         <p className="mt-2 text-sm">{data.agentReport.summary}</p>
-        <p className="mt-1 text-xs text-[var(--muted)]"><a href={"/reports/debates/" + data.agentReport.tradeDate + "/" + code + ".md"} target="_blank">📄 查看完整辩论报告</a></p>
+        <button className="mt-2 text-xs text-[var(--accent)] hover:underline" onClick={() => showDebate(code)}>📄 查看完整辩论报告</button>
+        <details className="mt-3"><summary className="cursor-pointer text-xs text-[var(--muted)]">📊 评级说明</summary>
+          <div className="mt-2 text-xs text-[var(--muted)] space-y-1">
+            <p><b>5分</b> — 强烈推荐（多维度一致看好）</p>
+            <p><b>4分</b> — 推荐（整体向好，个别指标稍弱）</p>
+            <p><b>3分</b> — 中性（好坏参半，无明显优势）</p>
+            <p><b>2分</b> — 谨慎（多处风险，不建议重仓）</p>
+            <p><b>1分</b> — 回避（多维度一致看空）</p>
+          </div>
+        </details>
       </div></div>}
       {!data.aiReport && <div className="mt-6"><h3 className="text-base font-semibold">AI 分析</h3><div className="mt-3 rounded-lg border border-[var(--line)] bg-white p-4 text-sm text-[var(--muted)]">未生成 AI 报告 — 请确认已配置 API Key 并在设置中开启 AI。</div></div>}
-    </section></AppShell>
+    </section>
+      {debateContent && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDebateContent(null)}><div className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}><div className="flex items-center justify-between mb-4"><h3 className="text-lg font-semibold">辩论报告 — {code}</h3><button className="text-sm text-[var(--muted)]" onClick={() => setDebateContent(null)}>✕</button></div><pre className="whitespace-pre-wrap text-sm leading-relaxed">{debateContent}</pre></div></div>}
+    </AppShell>
   );
 }
