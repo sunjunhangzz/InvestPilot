@@ -65,10 +65,10 @@ def momentum_score(
     return_20d: float | None,
     return_60d: float | None,
 ) -> float:
-    """Score recent price momentum.
+    """Score recent price momentum with finer gradation.
 
-    Positive returns earn points; the magnitude is capped to avoid
-    rewarding extreme short-term spikes.
+    Uses a sigmoid-like curve so moderate returns (5-10%) get decent
+    scores, but extreme returns (50%+) don't dominate.
     """
 
     if return_20d is None and return_60d is None:
@@ -77,26 +77,28 @@ def momentum_score(
     r20 = return_20d or 0.0
     r60 = return_60d or 0.0
 
-    # Map return to 0–50 sub-score (capped at ±20%).
     def _sub(r: float) -> float:
-        return _clamp(50 + r * 2.5, 0, 100) / 2
+        # 0%→30, 10%→50, 30%→75, 50%+→90 (saturating).
+        if r > 0:
+            return _clamp(30 + r * 2.0, 0, 90)
+        else:
+            return _clamp(30 + r * 1.5, 0, 90)
 
-    return _clamp(_sub(r20) + _sub(r60))
+    return _clamp((_sub(r20) + _sub(r60)) / 2)
 
 
 def liquidity_score(avg_amount_20d: float | None) -> float:
-    """Score trading liquidity based on 20-day average turnover amount.
+    """Score trading liquidity with wider log scale.
 
-    Uses a log scale to differentiate within reasonable ranges without
-    letting mega-caps dominate.
+    Uses 4 orders of magnitude: 10M→10, 100M→40, 1B→70, 10B→100.
     """
 
     if avg_amount_20d is None or avg_amount_20d <= 0:
         return 0.0
 
-    # log10 scale: 10^7 (10M) → 0, 10^9 (1B) → 100.
     log_val = math.log10(avg_amount_20d)
-    return _clamp((log_val - 7.0) / 2.0 * 100)
+    # Map 7.0 (10M) → 10, 10.0 (10B) → 100
+    return _clamp((log_val - 7.0) / 3.0 * 100, 0, 100)
 
 
 def risk_score(
