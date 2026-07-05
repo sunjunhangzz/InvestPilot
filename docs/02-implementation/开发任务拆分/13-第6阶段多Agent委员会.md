@@ -226,6 +226,15 @@ CREATE TABLE agent_reports (
 | 第3轮 | **Tavily Search API**（网络公开信息） | 财报/新闻/研报/公告 |
 | 第4轮 | 前三轮综合 | 分组辩论 |
 
+## 搜索双引擎（自动切换）
+
+| 引擎 | 优先 | 免费额度 | 切换条件 |
+|---|---|---|---|
+| Tavily | 主 | 1000/月 | 配额耗尽或 API 异常 |
+| SerpAPI | 备 | 100/月 | Tavily 不可用时自动切换 |
+
+实现：search_web(query) 先调 Tavily，失败自动切 SerpAPI。
+
 ## 新增依赖
 
 - `tavily-python`：Tavily Search API SDK
