@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
+import dynamic from "next/dynamic";
 import { AppShell } from "@/components/AppShell";
+
+const PriceChart = dynamic(() => import("@/components/PriceChart"), { ssr: false });
 
 type StockDetail = {
   code: string; name: string; board: string; isSt: number;
@@ -35,6 +38,7 @@ export default function StockPage({ params }: Props) {
   return (
     <AppShell><section className="mx-auto max-w-7xl px-6 py-8">
       <div className="flex items-baseline gap-3"><h2 className="text-xl font-semibold">{data.name}</h2><span className="text-sm text-[var(--muted)]">{data.code} · {data.board}</span>{data.isSt === 1 && <span className="rounded bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-800">ST</span>}</div>
+      <div className="mt-6"><PriceChart code={code} /></div>
       {f && <div className="mt-6 grid gap-4 md:grid-cols-5">
         {[{ label: "趋势", v: f.trendScore }, { label: "动量", v: f.momentumScore }, { label: "流动性", v: f.liquidityScore }, { label: "风险", v: f.riskScore }, { label: "总分", v: f.totalScore }].map((s) => (<div key={s.label} className="rounded-lg border border-[var(--line)] bg-white p-4"><p className="text-sm text-[var(--muted)]">{s.label}</p><p className="mt-2 text-2xl font-semibold">{s.v}</p></div>))}
       </div>}
