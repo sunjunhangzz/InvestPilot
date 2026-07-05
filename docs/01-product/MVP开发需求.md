@@ -171,6 +171,8 @@ scripts/calc_factors.py    计算基础因子
 scripts/run_screening.py   执行主板趋势筛选
 scripts/update_watchlist.py 更新观察池状态
 scripts/generate_report.py 生成基础AI报告
+scripts/health_check.py      健康检查（环境/依赖/DB/日志）
+scripts/fetch_test_prices.py 单只股票行情拉取测试
 ```
 
 ## 数据库表
