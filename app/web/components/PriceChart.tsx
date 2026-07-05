@@ -21,7 +21,7 @@ export default function PriceChart({ code }: { code: string }) {
     let c = false;
     async function f() {
       try {
-        const r = await fetch(`/api/stocks/${code}/prices?days=120&period=${period}`);
+        const r = await fetch(`/api/stocks/${code}/prices?days=180&period=${period}`);
         const j = await r.json();
         if (!c && j.ok) setData(j.data.prices ?? []);
       } catch { /* offline */ }
