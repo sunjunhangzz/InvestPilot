@@ -1,0 +1,6 @@
+AI-A codes: ['603259']
+600030 rating=4 consensus=split votes={'agree': 2, 'oppose': 3}
+000783 rating=4 consensus=split votes={'agree': 1, 'oppose': 4}
+603259 rating=3 consensus=majority votes={'agree': 4, 'oppose': 1}
+601211 rating=3 consensus=majority votes={'agree': 3, 'oppose': 2}
+000776 rating=2 consensus=split votes={'agree': 2, 'oppose': 3}

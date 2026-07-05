@@ -30,13 +30,19 @@ export default function DashboardPage() {
       }
     }
     load();
-    return () => { cancelled = true; };
+    const stepNames: Record<string,string> = {stocks:"采集股票列表",prices:"采集行情数据",factors:"计算因子评分",screening:"执行策略筛选",watchlist:"更新观察池",committee:"Agent委员会辩论"};
+  const progText = progress ? `${stepNames[progress.step]||progress.step}` + (progress.total>0 ? ` · ${progress.current}/${progress.total} · ${progress.detail||""}` : "") : running === "update-data" ? "正在采集数据…" : "正在运行筛选+分析…";
+  const progPct = progress && progress.total>0 ? Math.round(progress.current/progress.total*100) : 0;
+
+  return () => { cancelled = true; };
   }, []);
 
   const [running, setRunning] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ step: string; current: number; total: number; detail: string } | null>(null);
 
   const triggerPipeline = async (pipeline: string) => {
     setRunning(pipeline);
+    setProgress(null);
     try {
       const res = await fetch("/api/tasks/run", {
         method: "POST",
@@ -55,8 +61,12 @@ export default function DashboardPage() {
           const r = await fetch(`/api/tasks/${taskId}`);
           const j = await r.json();
           if (j.ok && j.data.status !== "pending" && j.data.status !== "running") {
-            clearInterval(poll);
-            window.location.reload();
+            clearInterval(poll); setProgress(null);
+            window.location.reload(); return;
+          }
+          const dr = await fetch("/api/dashboard"); const dj = await dr.json();
+          if (dj.ok && dj.data.latestTask?.stepDetail) {
+            try { setProgress(JSON.parse(dj.data.latestTask.stepDetail)); } catch { /* */ }
           }
         } catch { /* keep polling */ }
       }, 2000);
@@ -81,6 +91,10 @@ export default function DashboardPage() {
     { label: "最新交易日", value: data.latestRun?.tradeDate ?? "—", note: data.latestRun ? `run: ${data.latestRun.runId}` : "等待首次筛选" },
   ];
 
+  const stepNames: Record<string,string> = {stocks:"采集股票列表",prices:"采集行情数据",factors:"计算因子评分",screening:"执行策略筛选",watchlist:"更新观察池",committee:"Agent委员会辩论"};
+  const progText = progress ? `${stepNames[progress.step]||progress.step}` + (progress.total>0 ? ` · ${progress.current}/${progress.total} · ${progress.detail||""}` : "") : running === "update-data" ? "正在采集数据…" : "正在运行筛选+分析…";
+  const progPct = progress && progress.total>0 ? Math.round(progress.current/progress.total*100) : 0;
+
   return (
     <AppShell>
       <section className="mx-auto max-w-7xl px-6 py-8">
@@ -91,9 +105,11 @@ export default function DashboardPage() {
             <button className="h-10 rounded-md border border-[var(--accent)] px-4 text-sm font-medium text-[var(--accent)] disabled:opacity-50" onClick={() => triggerPipeline("run-screening")} disabled={running !== null} type="button">{running === "run-screening" ? "筛选+分析中…" : "运行筛选"}</button>
           </div>
         </div>
-        {running && (
+        {(running || progress) && (
           <div className="mt-3 rounded-lg border border-[var(--accent)] bg-blue-50 p-3 text-sm text-[var(--accent)]">
-            {running === "update-data" ? "正在采集数据…" : "正在运行筛选+分析…"}（完成后自动刷新）
+            {progText}
+            {progress && progress.total > 0 && <div className="mt-2 h-2 w-full rounded bg-blue-200"><div className="h-2 rounded bg-[var(--accent)] transition-all" style={{width: progPct+"%"}} /></div>}
+            <p className="mt-1 text-xs">（完成后自动刷新）</p>
           </div>
         )}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{items.map((item) => (<MetricCard key={item.label} metric={item} />))}</div>
