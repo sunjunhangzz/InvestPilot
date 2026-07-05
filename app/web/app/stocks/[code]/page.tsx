@@ -11,7 +11,7 @@ type StockDetail = {
   factors: { trendScore: number; momentumScore: number; liquidityScore: number; riskScore: number; totalScore: number; tradeDate: string } | null;
   recentRecommendations: { tradeDate: string; createdAt: string; rating: string; totalScore: number; reason: string; riskTags: string }[];
   aiReport: { content: string; modelName: string; tradeDate: string } | null;
-  fundamental: { pe: number; pb: number; roe: number; revenue: number; revenueYoy: number; netProfit: number; netProfitYoy: number; eps: number; debtRatio: number; industry: string } | null;
+  fundamental: { pe: number; pb: number; roe: number; revenue: number; revenueYoy: number; netProfit: number; netProfitYoy: number; eps: number; debtRatio: number; industry: string; reportDate: string } | null;
   agentReport: { rating: number; consensus: string; summary: string; modelName: string; tradeDate: string } | null;
 };
 
@@ -62,7 +62,7 @@ export default function StockPage({ params }: Props) {
       {data.recentRecommendations.length > 0 && <div className="mt-6"><h3 className="text-base font-semibold">推荐历史</h3><div className="mt-3 space-y-3">{data.recentRecommendations.map((r, i) => (<div key={i} className="rounded-lg border border-[var(--line)] bg-white p-4"><div className="flex items-center gap-2"><span className="text-sm font-medium">{r.tradeDate}</span><span className="text-xs text-[var(--muted)]">{r.createdAt?.slice(0, 19)?.replace("T", " ") ?? ""}</span><span className="rounded bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800">{r.rating}</span><span className="text-sm text-[var(--muted)]">评分 {r.totalScore}</span></div><p className="mt-2 text-sm">{r.reason}</p>{r.riskTags && <p className="mt-1 text-sm text-orange-600">风险：{r.riskTags}</p>}</div>))}</div></div>}
       {data.aiReport && <div className="mt-6"><h3 className="text-base font-semibold">AI 分析</h3><div className="mt-3 rounded-lg border border-[var(--line)] bg-white p-4"><p className="text-sm text-[var(--muted)]">模型：{data.aiReport.modelName} · {data.aiReport.tradeDate}</p><p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed">{data.aiReport.content}</p></div></div>}
       {data.fundamental && <div className="mt-6"><h3 className="text-base font-semibold">基本面</h3><div className="mt-3 grid gap-3 md:grid-cols-3">{[
-        { l: "PE", tip: "市盈率=股价÷每股收益。越低越便宜。&lt;20低估，&gt;50高估", v: data.fundamental.pe?.toFixed(1) }, { l: "PB", tip: "市净率=股价÷每股净资产。&lt;1破净", v: data.fundamental.pb?.toFixed(2) }, { l: "ROE", tip: "净资产收益率。&gt;15%优秀，&lt;5%差", v: data.fundamental.roe?.toFixed(1) + "%" },
+        { l: "PE", tip: "市盈率=股价÷每股收益。越低越便宜。&lt;20低估，&gt;50高估", v: data.fundamental.pe?.toFixed(1) }, { l: "PB", tip: "市净率=股价÷每股净资产。&lt;1破净", v: data.fundamental.pb?.toFixed(2) }, { l: "ROE", tip: "净资产收益率。&gt;15%优秀，&lt;5%差", v: data.fundamental.roe?.toFixed(1) + "%", sub: data.fundamental.reportDate ? "报告期:" + data.fundamental.reportDate : "" },
         { l: "营收", v: (data.fundamental.revenue/1e8)?.toFixed(1) + "亿" }, { l: "营收增速", tip: "相比去年同期。&gt;20%高增长，&lt;0下滑", v: data.fundamental.revenueYoy?.toFixed(1) + "%" },
         { l: "净利润", v: (data.fundamental.netProfit/1e8)?.toFixed(1) + "亿" }, { l: "利润增速", tip: "相比去年同期。&gt;20%高增长，&lt;-30%暴跌", v: data.fundamental.netProfitYoy?.toFixed(1) + "%" },
         { l: "行业", v: data.fundamental.industry || "—" }, { l: "EPS", v: data.fundamental.eps?.toFixed(2) }
