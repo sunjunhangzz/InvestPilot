@@ -135,55 +135,74 @@ def main() -> int:
     # --- Agent committee (--mode=committee) ---
     if mode == "committee" and is_ai_enabled():
         print()
-        print("=== Agent 委员会辩论 ===")
+        print("=== Agent 委员会辩论（前5只） ===")
         from app.worker.src.reports.agents import debate_stock, write_debate_report
-        import os
+        from datetime import datetime as dt
+        import os, traceback
 
-        # Only top-10 by rank for committee.
-        committee_recs = [r for r in rec_rows if r["rank"] <= 10]
+        # Top-5 only.
+        committee_recs = [r for r in rec_rows if r["rank"] <= 5]
         print(f"Evaluating {len(committee_recs)} stocks...")
+        if not committee_recs:
+            print("  no stocks in top 5")
 
-        committee_results = []
-        output_dir = os.path.join(PROJECT_ROOT, "reports", "debates", str(rec_rows[0]["trade_date"]))
+        # Load industry map.
+        with database_connection() as fconn:
+            ind_map = {r["code"]: r["industry"] for r in fconn.execute(
+                "SELECT code, industry FROM stocks WHERE industry IS NOT NULL").fetchall()}
+
+        # Error trace directory.
+        ts = dt.now().strftime("%Y%m%d_%H%M%S")
+        debug_dir = os.path.join(PROJECT_ROOT, "docs", "debug", ts)
+        os.makedirs(debug_dir, exist_ok=True)
+
+        trade_date_str = str(rec_rows[0]["trade_date"])
+        run_id_val = str(rec_rows[0]["run_id"])
+        output_dir = os.path.join(PROJECT_ROOT, "reports", "debates", trade_date_str)
+        results = []
+
         for rec in committee_recs:
-            code = rec["code"]
-            stock = {"code": code, "name": rec["name"], "board": rec["board"]}
-            factors = factors_map.get(code)
-            fund = fund_map.get(code) if 'fund_map' in locals() else None
-            industry = (rec["industry"] if "industry" in rec.keys() else None or
-                        (fund.get("industry") if fund else None) or
-                        (c.execute("SELECT industry FROM stocks WHERE code=?", (code,)).fetchone() or {}).get("industry"))
-
+            code = str(rec["code"]); name = str(rec["name"])
+            factors = factors_map.get(code) or {}
+            fund = fund_map.get(code)
+            industry = rec["industry"] if "industry" in rec.keys() else ind_map.get(code)
             try:
-                result = debate_stock(code, rec["name"], factors or {}, fund, industry,
-                                      rec["run_id"], rec["trade_date"])
-                if result:
-                    committee_results.append(result)
-                    write_debate_report(result, output_dir)
-                    print(f"  {code}: rating={result['rating']} consensus={result['consensus']}")
-                else:
+                r = debate_stock(code, name, factors, fund, industry, run_id_val, trade_date_str)
+                if not r:
                     print(f"  {code}: ✗ (AI disabled)")
+                    continue
+                results.append(r)
+                write_debate_report(r, output_dir)
+                # Store in agent_reports (AI rating stored here, NOT overwriting recommendations).
+                try:
+                    with database_connection() as wc:
+                        wc.execute('''INSERT OR REPLACE INTO agent_reports
+                            (run_id,code,trade_date,rating,consensus,debate_history,summary,model_name)
+                            VALUES(?,?,?,?,?,?,?,?)''',
+                            (run_id_val,code,trade_date_str,r["rating"],r["consensus"],
+                             "4-round debate",r["summary"],"deepseek-v4-flash"))
+                        wc.commit()
+                    print(f"  {code}: rating={r['rating']} consensus={r['consensus']} ✓")
+                except Exception as dbe:
+                    print(f"  {code}: rating={r['rating']} DB write failed: {dbe}")
+                    with open(os.path.join(debug_dir, f"{code}_db_error.txt"), "w") as df:
+                        df.write(f"agent_reports INSERT failed: {dbe}\n\n{traceback.format_exc()}")
             except Exception as e:
                 print(f"  {code}: ✗ {e}")
+                with open(os.path.join(debug_dir, f"{code}_error.txt"), "w") as ef:
+                    ef.write(f"debate_stock failed: {e}\n\n{traceback.format_exc()}")
 
-        if committee_results:
-            # Determine AI-A stocks (top 5 by rating, minimum 3 votes).
-            committee_results.sort(key=lambda x: (-x["rating"], -x["votes"].get("agree", 0)))
-            ai_a_codes = set()
-            for r in committee_results[:5]:
-                if r["votes"].get("agree", 0) >= 3:
-                    ai_a_codes.add(r["code"])
-
-            # Update recommendations with AI ratings.
-            with database_connection() as conn:
-                for r in committee_results:
-                    ai_grade = "AI-A" if r["code"] in ai_a_codes else "B"
-                    conn.execute(
-                        "UPDATE recommendations SET rating=? WHERE run_id=? AND code=?", 
-                        (ai_grade, r.get("run_id", rec_rows[0]["run_id"]), r["code"]),
-                    )
-                conn.commit()
-            print(f"AI-A: {len(ai_a_codes)} stocks")
+        # Summary.
+        if results:
+            results.sort(key=lambda x: (-x["rating"], -x["votes"].get("agree", 0)))
+            ai_a = [r["code"] for r in results[:3] if r["votes"].get("agree", 0) >= 3]
+            print(f"AI-A (top 3): {ai_a}")
+            with open(os.path.join(debug_dir, "summary.txt"), "w") as sf:
+                sf.write(f"AI-A codes: {ai_a}\n")
+                for r in results:
+                    sf.write(f"{r['code']} rating={r['rating']} consensus={r['consensus']} votes={r['votes']}\n")
+        else:
+            print("No committee results — all stocks failed or AI disabled")
 
     return 0
 
