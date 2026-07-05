@@ -6,6 +6,8 @@ import { AppShell } from "@/components/AppShell";
 export default function SettingsPage() {
   const [recLimit, setRecLimit] = useState(50);
   const [aiEnabled, setAiEnabled] = useState(false);
+  const [wechatEnabled, setWechatEnabled] = useState(false);
+  const [wechatHook, setWechatHook] = useState("");
   const [load, setLoad] = useState(true);
   const [msg, setMsg] = useState("");
 
@@ -17,6 +19,8 @@ export default function SettingsPage() {
         if (j.ok && !c) {
           if (j.data["recommendationLimit"]) setRecLimit(Number(j.data["recommendationLimit"]));
           if (j.data["ai.enabled"] !== undefined) setAiEnabled(j.data["ai.enabled"] === "true" || j.data["ai.enabled"] === true);
+          if (j.data["wechat.enabled"] !== undefined) setWechatEnabled(j.data["wechat.enabled"] === "true" || j.data["wechat.enabled"] === true);
+          if (j.data["wechat.webhook_url"]) setWechatHook(j.data["wechat.webhook_url"]);
         }
       } catch { /* ignore */ }
       if (!c) setLoad(false);
@@ -33,6 +37,8 @@ export default function SettingsPage() {
         body: JSON.stringify({
           "recommendationLimit": String(recLimit),
           "ai.enabled": String(aiEnabled),
+          "wechat.enabled": String(wechatEnabled),
+          "wechat.webhook_url": wechatHook,
         }),
       });
       const j = await r.json();
@@ -56,6 +62,19 @@ export default function SettingsPage() {
             启用 AI 报告
           </label>
           <p className="mt-1 text-xs text-[var(--muted)]">开启后，运行筛选时自动生成 AI 分析报告（需配置 API Key）。关闭时只做规则筛选。</p>
+        </div>
+        <hr className="border-[var(--line)]" />
+        <h3 className="text-sm font-semibold">微信推送</h3>
+        <div>
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input type="checkbox" checked={wechatEnabled} onChange={(e) => setWechatEnabled(e.target.checked)} className="h-4 w-4" />
+            启用推送（08:00 早盘 + 12:00 午间）
+          </label>
+        </div>
+        <div>
+          <label className="block text-sm font-medium">企业微信 Webhook URL</label>
+          <input className="mt-1 w-full rounded-md border border-[var(--line)] px-3 py-2 text-sm font-mono" value={wechatHook} onChange={(e) => setWechatHook(e.target.value)} placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=..." />
+          <p className="mt-1 text-xs text-[var(--muted)]">企业微信群机器人 Webhook 地址。支持 PushPlus Token / Server酱 SendKey 作为备选。</p>
         </div>
         <button className="h-10 rounded-md bg-[var(--accent)] px-4 text-sm font-medium text-white" onClick={save} type="button">保存</button>
         {msg && <p className="text-sm text-[var(--muted)]">{msg}</p>}
