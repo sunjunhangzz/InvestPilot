@@ -166,14 +166,17 @@ def _build_morning_md() -> str | None:
         for cr in committee:
             e = "GREEN" if cr["rating"] >= 4 else "YELLOW" if cr["rating"] >= 3 else "RED"
             lines.append(f"{e} {cr['code']} 评级={cr['rating']} 共识={cr['consensus']}")
-    # Agent committee results.
-    committee = c.execute("SELECT code, rating, consensus FROM agent_reports WHERE run_id=? ORDER BY rating DESC LIMIT 5", (run["run_id"],)).fetchall()
+    # Agent committee — full chair summaries.
+    committee = c.execute("SELECT code, rating, consensus, summary FROM agent_reports WHERE run_id=? ORDER BY rating DESC", (run["run_id"],)).fetchall()
     if committee:
         lines.append("")
-        lines.append("### Agent 委员会评级")
+        lines.append("### 辩论报告（主席总结）")
         for cr in committee:
-            e =                 chr(0x1F7E2) if cr["rating"] >= 4 else                 chr(0x1F7E1) if cr["rating"] >= 3 else                 chr(0x1F534)
-            lines.append(f"{e} {cr['code']} 评级={cr['rating']} 共识={cr['consensus']}")
+            e = "GREEN" if cr["rating"] >= 4 else "YELLOW" if cr["rating"] >= 3 else "RED"
+            lines.append(f"{e} {cr['code']} 评级={cr['rating']}/5 共识={cr['consensus']}")
+            if cr["summary"]:
+                lines.append(f"> {cr['summary'][:200]}")
+            lines.append("")
 
     return "\n".join(lines)
 
