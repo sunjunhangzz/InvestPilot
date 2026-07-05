@@ -15,6 +15,7 @@ const SCRIPT_MAP: Record<string, string> = {
   calc_factors: "app/worker/scripts/calc_factors.py",
   run_screening: "app/worker/scripts/run_screening.py",
   update_watchlist: "app/worker/scripts/update_watchlist.py",
+  generate_report: "app/worker/scripts/generate_report.py",
 };
 
 export type WorkerResult = {
