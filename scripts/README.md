@@ -109,3 +109,30 @@ bash scripts/run_analysis.sh           # 第一次
 # 调整参数或想看最新数据
 bash scripts/run_analysis.sh --ai      # 再跑一次，不需要重新采集
 ```
+
+---
+
+## 定时推送（launchd）
+
+macOS 下安装定时任务：
+
+```bash
+# 早盘 08:00
+cp scripts/com.investpilot.morning.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.investpilot.morning.plist
+
+# 午间 12:00
+cp scripts/com.investpilot.noon.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.investpilot.noon.plist
+```
+
+**手动测试**：
+```bash
+bash scripts/morning_push.sh
+bash scripts/noon_push.sh
+```
+
+**注意事项**：
+- 定时推送需要**电脑保持开机**（睡眠时 launchd 不触发，唤醒后自动补跑）
+- 如果电脑关机错过推送时间，可手动运行脚本
+- plist 文件中的路径是绝对路径，如果项目位置变了需要修改
