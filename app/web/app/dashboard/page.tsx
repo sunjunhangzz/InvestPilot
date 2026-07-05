@@ -33,7 +33,10 @@ export default function DashboardPage() {
     return () => { cancelled = true; };
   }, []);
 
+  const [running, setRunning] = useState<string | null>(null);
+
   const triggerPipeline = async (pipeline: string) => {
+    setRunning(pipeline);
     try {
       const res = await fetch("/api/tasks/run", {
         method: "POST",
@@ -41,13 +44,13 @@ export default function DashboardPage() {
         body: JSON.stringify({ pipeline }),
       });
       const json = await res.json();
-      if (!json.ok) { alert(json.error?.message ?? "启动失败"); return; }
+      if (!json.ok) { alert(json.error?.message ?? "启动失败"); setRunning(null); return; }
       const taskId = json.data.taskId;
       let attempts = 0;
-      const maxAttempts = 3600; // ~2 hours at 2s intervals
+      const maxAttempts = 3600;
       const poll = setInterval(async () => {
         attempts++;
-        if (attempts > maxAttempts) { clearInterval(poll); return; }
+        if (attempts > maxAttempts) { clearInterval(poll); setRunning(null); return; }
         try {
           const r = await fetch(`/api/tasks/${taskId}`);
           const j = await r.json();
@@ -55,9 +58,9 @@ export default function DashboardPage() {
             clearInterval(poll);
             window.location.reload();
           }
-        } catch { /* network error — keep polling */ }
+        } catch { /* keep polling */ }
       }, 2000);
-    } catch { alert("网络错误"); }
+    } catch { alert("网络错误"); setRunning(null); }
   };
 
   const reload = () => { setState({ loading: true }); window.location.reload(); };
@@ -84,16 +87,16 @@ export default function DashboardPage() {
         <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div><h2 className="text-xl font-semibold">首页仪表盘</h2><p className="mt-2 text-sm text-[var(--muted)]">数据、筛选、观察池和报告任务汇总展示。</p></div>
           <div className="flex gap-2">
-            <button className="h-10 rounded-md bg-[var(--accent)] px-4 text-sm font-medium text-white" onClick={() => triggerPipeline("update-data")} type="button">更新数据</button>
-            <button className="h-10 rounded-md border border-[var(--accent)] px-4 text-sm font-medium text-[var(--accent)]" onClick={() => triggerPipeline("run-screening")} type="button">运行筛选</button>
+            <button className="h-10 rounded-md bg-[var(--accent)] px-4 text-sm font-medium text-white disabled:opacity-50" onClick={() => triggerPipeline("update-data")} disabled={running !== null} type="button">{running === "update-data" ? "更新中…" : "更新数据"}</button>
+            <button className="h-10 rounded-md border border-[var(--accent)] px-4 text-sm font-medium text-[var(--accent)] disabled:opacity-50" onClick={() => triggerPipeline("run-screening")} disabled={running !== null} type="button">{running === "run-screening" ? "筛选+分析中…" : "运行筛选"}</button>
           </div>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{items.map((item) => (<MetricCard key={item.label} metric={item} />))}</div>
         <div className="mt-6 rounded-lg border border-[var(--line)] bg-white">
           <div className="border-b border-[var(--line)] px-5 py-4"><h3 className="text-base font-semibold">任务链路</h3></div>
           <div className="grid gap-0 md:grid-cols-4">
-            {[{ name: "数据获取", done: data.recommendations.total > 0 }, { name: "因子评分", done: data.recommendations.total > 0 }, { name: "推荐生成", done: data.recommendations.total > 0 }, { name: "报告输出", done: false }].map((step) => (
-              <div className="border-b border-[var(--line)] p-5 last:border-b-0 md:border-r md:border-b-0 last:md:border-r-0" key={step.name}><p className="text-sm font-medium">{step.name}</p><p className="mt-2 text-sm text-[var(--muted)]">{step.done ? "已完成" : "未运行"}</p></div>
+            {[{ name: "数据获取", status: running === "update-data" ? "running" : data.recommendations.total > 0 ? "done" : "idle" }, { name: "因子评分", status: running === "run-screening" ? "running" : data.recommendations.total > 0 ? "done" : "idle" }, { name: "推荐生成", status: running === "run-screening" ? "running" : data.recommendations.total > 0 ? "done" : "idle" }, { name: "报告输出", status: running === "run-screening" ? "running" : "idle" }].map((step) => (
+              <div className="border-b border-[var(--line)] p-5 last:border-b-0 md:border-r md:border-b-0 last:md:border-r-0" key={step.name}><p className="text-sm font-medium">{step.name}</p><p className="mt-2 text-sm text-[var(--muted)]">{step.status === "running" ? "运行中…" : step.status === "done" ? "已完成" : step.status === "idle" ? "未运行" : "未运行"}</p></div>
             ))}
           </div>
         </div>
