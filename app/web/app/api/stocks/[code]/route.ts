@@ -46,12 +46,19 @@ export async function GET(
     [code],
   );
 
+  // Fundamental data.
+  const fundamental = queryOne(
+    "SELECT * FROM fundamentals WHERE code = ?",
+    [code],
+  );
+
   return ok(
     mapToCamelCase({
       ...(stock as Record<string, unknown>),
       factors: factors ?? null,
       recentRecommendations: recs,
       aiReport: aiReport ?? null,
+      fundamental: fundamental ?? null,
     }),
   );
 }
