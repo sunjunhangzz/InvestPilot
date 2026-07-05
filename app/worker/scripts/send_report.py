@@ -159,6 +159,22 @@ def _build_morning_md() -> str | None:
             for b in breached[:5]:
                 lines.append(f"- {b}")
 
+    committee = c.execute("SELECT code, rating, consensus FROM agent_reports WHERE run_id=? ORDER BY rating DESC LIMIT 5", (run["run_id"],)).fetchall()
+    if committee:
+        lines.append("")
+        lines.append("### Agent 委员会评级")
+        for cr in committee:
+            e = "GREEN" if cr["rating"] >= 4 else "YELLOW" if cr["rating"] >= 3 else "RED"
+            lines.append(f"{e} {cr['code']} 评级={cr['rating']} 共识={cr['consensus']}")
+    # Agent committee results.
+    committee = c.execute("SELECT code, rating, consensus FROM agent_reports WHERE run_id=? ORDER BY rating DESC LIMIT 5", (run["run_id"],)).fetchall()
+    if committee:
+        lines.append("")
+        lines.append("### Agent 委员会评级")
+        for cr in committee:
+            e =                 chr(0x1F7E2) if cr["rating"] >= 4 else                 chr(0x1F7E1) if cr["rating"] >= 3 else                 chr(0x1F534)
+            lines.append(f"{e} {cr['code']} 评级={cr['rating']} 共识={cr['consensus']}")
+
     return "\n".join(lines)
 
 
