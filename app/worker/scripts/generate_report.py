@@ -86,8 +86,8 @@ def main() -> int:
         factors_map = {r["code"]: dict(r) for r in factor_rows}
 
     # Load fundamentals for committee mode.
-    fund_map: dict[str, dict] = {}
     with database_connection() as fconn:
+        fund_map = {}
         for fr in fconn.execute("SELECT * FROM fundamentals").fetchall():
             fund_map[fr["code"]] = dict(fr)
 
@@ -149,8 +149,8 @@ def main() -> int:
             code = rec["code"]
             stock = {"code": code, "name": rec["name"], "board": rec["board"]}
             factors = factors_map.get(code)
-            fund = fund_map.get(code) if 'fund_map' in dir() else None
-            industry = (rec.get("industry") or
+            fund = fund_map.get(code) if 'fund_map' in locals() else None
+            industry = (rec["industry"] if "industry" in rec.keys() else None or
                         (fund.get("industry") if fund else None) or
                         (c.execute("SELECT industry FROM stocks WHERE code=?", (code,)).fetchone() or {}).get("industry"))
 
