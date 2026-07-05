@@ -82,6 +82,32 @@ def _send(provider: str, token: str, content: str, title: str = "") -> bool:
         return _send_wecom(webhook_url or token, content)
 
 
+
+def _extract_round3(code: str, trade_date: str) -> str:
+    """Extract round 3 (web evidence) from debate Markdown file."""
+    import os
+    debate_path = os.path.join(PROJECT_ROOT, "reports", "debates", trade_date, f"{code}.md")
+    if not os.path.exists(debate_path):
+        return ""
+    try:
+        content = open(debate_path).read()
+        # Find "## 第3轮" section
+        start = content.find("## 第3轮")
+        if start < 0:
+            return ""
+        # Find next "## 第4轮" or end
+        end = content.find("## 第4轮", start)
+        if end < 0:
+            end = content.find("## 主席", start)
+        if end < 0:
+            end = len(content)
+        section = content[start:end].strip()
+        # Trim to 500 chars
+        return section[:500]
+    except Exception:
+        return ""
+
+
 def _build_morning_md() -> str | None:
     """Build Markdown push content for morning report."""
     with database_connection() as c:
@@ -166,17 +192,16 @@ def _build_morning_md() -> str | None:
         for cr in committee:
             e = "GREEN" if cr["rating"] >= 4 else "YELLOW" if cr["rating"] >= 3 else "RED"
             lines.append(f"{e} {cr['code']} 评级={cr['rating']} 共识={cr['consensus']}")
-    # Agent committee — full chair summaries.
-    committee = c.execute("SELECT code, rating, consensus, summary FROM agent_reports WHERE run_id=? ORDER BY rating DESC", (run["run_id"],)).fetchall()
+    # Agent committee — round 3 web evidence.
+    committee = c.execute("SELECT code, rating, consensus FROM agent_reports WHERE run_id=? ORDER BY rating DESC", (run["run_id"],)).fetchall()
     if committee:
         lines.append("")
-        lines.append("### 辩论报告（主席总结）")
-        for cr in committee:
-            e = "GREEN" if cr["rating"] >= 4 else "YELLOW" if cr["rating"] >= 3 else "RED"
-            lines.append(f"{e} {cr['code']} 评级={cr['rating']}/5 共识={cr['consensus']}")
-            if cr["summary"]:
-                lines.append(f"> {cr['summary'][:200]}")
-            lines.append("")
+        lines.append("### 辩论·第3轮网络搜索证据（前10只）")
+        for cr in committee[:10]:
+            r3 = _extract_round3(cr["code"], run["trade_date"])
+            if r3:
+                lines.append(r3)
+                lines.append("")
 
     return "\n".join(lines)
 
