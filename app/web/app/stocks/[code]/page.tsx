@@ -12,6 +12,7 @@ type StockDetail = {
   recentRecommendations: { tradeDate: string; createdAt: string; rating: string; totalScore: number; reason: string; riskTags: string }[];
   aiReport: { content: string; modelName: string; tradeDate: string } | null;
   fundamental: { pe: number; pb: number; roe: number; revenue: number; revenueYoy: number; netProfit: number; netProfitYoy: number; eps: number; debtRatio: number; industry: string } | null;
+  agentReport: { rating: number; consensus: string; summary: string; modelName: string; tradeDate: string } | null;
 };
 
 type Props = { params: Promise<{ code: string }> };
@@ -51,6 +52,11 @@ export default function StockPage({ params }: Props) {
         { l: "净利润", v: (data.fundamental.netProfit/1e8)?.toFixed(1) + "亿" }, { l: "利润增速", v: data.fundamental.netProfitYoy?.toFixed(1) + "%" },
         { l: "行业", v: data.fundamental.industry || "—" }, { l: "EPS", v: data.fundamental.eps?.toFixed(2) }
       ].map(s => (<div key={s.l} className="rounded-lg border border-[var(--line)] bg-white p-3"><p className="text-xs text-[var(--muted)]">{s.l}</p><p className="mt-1 text-sm font-semibold">{s.v ?? "—"}</p></div>))}</div></div>}
+      {data.agentReport && <div className="mt-6"><h3 className="text-base font-semibold">🤖 Agent 委员会</h3><div className="mt-3 rounded-lg border border-[var(--line)] bg-white p-4">
+        <div className="flex items-center gap-3"><span className="text-2xl font-bold">{data.agentReport.rating}</span><span className="text-sm text-[var(--muted)]">/ 5 · 共识 {data.agentReport.consensus} · {data.agentReport.modelName}</span></div>
+        <p className="mt-2 text-sm">{data.agentReport.summary}</p>
+        <p className="mt-1 text-xs text-[var(--muted)]"><a href={"/reports/debates/" + data.agentReport.tradeDate + "/" + code + ".md"} target="_blank">📄 查看完整辩论报告</a></p>
+      </div></div>}
       {!data.aiReport && <div className="mt-6"><h3 className="text-base font-semibold">AI 分析</h3><div className="mt-3 rounded-lg border border-[var(--line)] bg-white p-4 text-sm text-[var(--muted)]">未生成 AI 报告 — 请确认已配置 API Key 并在设置中开启 AI。</div></div>}
     </section></AppShell>
   );

@@ -52,6 +52,12 @@ export async function GET(
     [code],
   );
 
+  // Agent committee report.
+  const agentReport = queryOne(
+    "SELECT rating, consensus, summary, model_name, trade_date FROM agent_reports WHERE code = ? ORDER BY created_at DESC LIMIT 1",
+    [code],
+  );
+
   return ok(
     mapToCamelCase({
       ...(stock as Record<string, unknown>),
@@ -59,6 +65,7 @@ export async function GET(
       recentRecommendations: recs,
       aiReport: aiReport ?? null,
       fundamental: fundamental ?? null,
+      agentReport: agentReport ?? null,
     }),
   );
 }

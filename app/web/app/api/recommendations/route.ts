@@ -12,10 +12,12 @@ export async function GET() {
     `SELECT r.code, s.name, r.rating, r.rank, r.total_score,
             r.reason, r.risk_tags, r.trade_date,
             f.trend_score, f.momentum_score, f.liquidity_score, f.risk_score,
-            (SELECT close FROM daily_prices WHERE code = r.code ORDER BY trade_date DESC LIMIT 1) AS close
+            (SELECT close FROM daily_prices WHERE code = r.code ORDER BY trade_date DESC LIMIT 1) AS close,
+            a.rating AS agent_rating, a.consensus AS agent_consensus
      FROM recommendations r
      JOIN stocks s ON s.code = r.code
      LEFT JOIN factors f ON f.run_id = r.run_id AND f.code = r.code
+     LEFT JOIN agent_reports a ON a.run_id = r.run_id AND a.code = r.code
      WHERE r.run_id = (SELECT run_id FROM runs WHERE status = 'success' ORDER BY created_at DESC LIMIT 1)
      ORDER BY r.rank`,
   );
