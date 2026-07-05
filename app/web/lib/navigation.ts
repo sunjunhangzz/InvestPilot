@@ -4,5 +4,6 @@ export const navigationItems = [
   { label: "观察池", href: "/watchlist" },
   { label: "报告中心", href: "/reports" },
   { label: "任务日志", href: "/tasks" },
+  { label: "复盘中心", href: "/backtest" },
   { label: "系统设置", href: "/settings" },
 ] as const;
