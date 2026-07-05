@@ -161,6 +161,25 @@ INDEX_STATEMENTS = [
     "CREATE INDEX IF NOT EXISTS idx_ai_reports_run_id_code ON ai_reports(run_id, code)",
 ]
 
+FUNDAMENTALS_TABLE = """
+    CREATE TABLE IF NOT EXISTS fundamentals (
+        code TEXT PRIMARY KEY,
+        pe REAL,
+        pb REAL,
+        roe REAL,
+        market_cap REAL,
+        revenue REAL,
+        revenue_yoy REAL,
+        net_profit REAL,
+        net_profit_yoy REAL,
+        eps REAL,
+        debt_ratio REAL,
+        industry TEXT,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+        FOREIGN KEY (code) REFERENCES stocks(code)
+    )
+"""
+
 
 def initialize_schema(connection: sqlite3.Connection) -> None:
     """Create all first-version tables and indexes without deleting existing data."""
@@ -170,6 +189,8 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
     with connection:
         for statement in TABLE_STATEMENTS:
             connection.execute(statement)
+
+        connection.execute(FUNDAMENTALS_TABLE)
 
         for statement in INDEX_STATEMENTS:
             connection.execute(statement)

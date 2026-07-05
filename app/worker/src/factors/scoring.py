@@ -132,3 +132,31 @@ def total_score(
         + risk * weights["risk"],
         2,
     )
+
+
+def fundamental_score(f: dict | None) -> float:
+    """Score fundamental quality (0-100). Returns 50 if no data."""
+    if f is None:
+        return 50.0
+    score = 50.0
+    roe = f.get("roe")
+    if roe is not None:
+        if roe > 15: score += 10
+        elif roe < 5: score -= 5
+    rev_yoy = f.get("revenue_yoy")
+    if rev_yoy is not None:
+        if rev_yoy > 20: score += 10
+        elif rev_yoy < 0: score -= 5
+    profit_yoy = f.get("net_profit_yoy")
+    if profit_yoy is not None:
+        if profit_yoy > 20: score += 10
+        elif profit_yoy < -30: score -= 10
+    pe = f.get("pe")
+    if pe is not None and pe > 0:
+        if pe < 20: score += 5
+        elif pe > 100: score -= 5
+    debt = f.get("debt_ratio")
+    if debt is not None:
+        if debt < 60: score += 5
+        elif debt > 80: score -= 5
+    return max(0.0, min(100.0, score))

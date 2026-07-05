@@ -27,6 +27,7 @@ from app.worker.src.factors.indicators import (
     volatility,
 )
 from app.worker.src.factors.scoring import (
+    fundamental_score,
     liquidity_score,
     momentum_score,
     risk_score,
@@ -141,6 +142,12 @@ def main() -> int:
     skipped_no_data = 0
     skipped_no_ma60 = 0
 
+    # Load fundamentals for bonus scoring.
+    fund_map: dict[str, dict] = {}
+    with connection:
+        for r in connection.execute("SELECT * FROM fundamentals").fetchall():
+            fund_map[r["code"]] = dict(r)
+
     for code, rows in sorted(prices.items()):
         # Must have at least 60 rows for MA60.
         if len(rows) < 60:
@@ -165,7 +172,8 @@ def main() -> int:
         m_score = momentum_score(r20, r60)
         l_score = liquidity_score(amt)
         r_score = risk_score(vol, mdd)
-        ttl = total_score(t_score, m_score, l_score, r_score)
+        fs = fundamental_score(fund_map.get(code))
+        ttl = total_score(t_score, m_score, l_score, r_score) + fs * 0.2
 
         factor_rows.append(
             {
@@ -176,7 +184,8 @@ def main() -> int:
                 "momentum_score": round(m_score, 2),
                 "liquidity_score": round(l_score, 2),
                 "risk_score": round(r_score, 2),
-                "total_score": round(ttl, 2),
+                "fundamental_score": round(fs, 2),
+            "total_score": round(ttl, 2),
             }
         )
 
