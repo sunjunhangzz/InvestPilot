@@ -23,7 +23,7 @@ def apply_filters(
     """
 
     if config is None:
-        config = load_config()
+        config = load_config(overlay_settings=True)
 
     filters_config = config["filters"]
     passed: list[dict[str, Any]] = []

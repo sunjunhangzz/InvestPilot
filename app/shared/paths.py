@@ -39,10 +39,39 @@ def load_json(path: Path) -> dict[str, Any]:
     return data
 
 
-def load_config() -> dict[str, Any]:
-    """Load shared runtime config."""
+def load_config(overlay_settings: bool = False) -> dict[str, Any]:
+    """Load shared runtime config.
 
-    return load_json(CONFIG_PATH)
+    When *overlay_settings* is True, the ``settings`` table in the SQLite DB
+    is queried and its key/value pairs override matching top-level keys in
+    config.json.  This lets the Web settings page control runtime parameters
+    without touching config files.
+    """
+
+    config = load_json(CONFIG_PATH)
+
+    if overlay_settings:
+        try:
+            db_path = resolve_project_path(str(config.get("databasePath", "data/a_stock_research.sqlite")))
+            if db_path.exists():
+                import sqlite3
+                conn = sqlite3.connect(db_path)
+                conn.row_factory = sqlite3.Row
+                rows = conn.execute("SELECT key, value FROM settings").fetchall()
+                conn.close()
+                for row in rows:
+                    key = row["key"]
+                    val = row["value"]
+                    # Try to parse JSON values (numbers, bools, objects).
+                    try:
+                        parsed = json.loads(val)
+                    except (json.JSONDecodeError, TypeError):
+                        parsed = val
+                    config[key] = parsed
+        except Exception:
+            pass  # settings table may not exist yet
+
+    return config
 
 
 def load_schema() -> dict[str, Any]:

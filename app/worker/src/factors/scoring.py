@@ -122,7 +122,7 @@ def total_score(
     """
 
     if weights is None:
-        config = load_config()
+        config = load_config(overlay_settings=True)
         weights = config["factorWeights"]
 
     return round(

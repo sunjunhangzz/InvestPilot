@@ -128,7 +128,7 @@ def _upsert_recommendations(connection, rows: list[dict]) -> int:
 
 
 def main() -> int:
-    config = load_config()
+    config = load_config(overlay_settings=True)
 
     with database_connection() as connection:
         trade_date = get_latest_trading_date(connection)

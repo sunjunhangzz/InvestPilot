@@ -21,7 +21,7 @@ load_dotenv()
 def is_ai_enabled() -> bool:
     """Return True when AI is turned on in config AND an API key is set."""
 
-    config = load_config()
+    config = load_config(overlay_settings=True)
     ai = config.get("ai", {})
     if not ai.get("enabled", False):
         return False
@@ -34,7 +34,7 @@ def is_ai_enabled() -> bool:
 def get_ai_config() -> dict[str, Any]:
     """Return the active AI configuration (provider, model, base_url)."""
 
-    config = load_config()
+    config = load_config(overlay_settings=True)
     ai = config.get("ai", {})
     provider = ai.get("provider", "deepseek")
     return {

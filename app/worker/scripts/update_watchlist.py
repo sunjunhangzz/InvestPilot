@@ -64,7 +64,7 @@ def _count_trading_days_from_entry(
 
 
 def main() -> int:
-    config = load_config()
+    config = load_config(overlay_settings=True)
 
     with database_connection() as connection:
         task_id, is_external = resolve_task_id("update_watchlist", connection, _new_task_id)
