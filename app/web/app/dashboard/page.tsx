@@ -9,7 +9,7 @@ type DashboardData = {
   latestRun: { runId: string; tradeDate: string; status: string } | null;
   recommendations: { total: number; byRating: Record<string, number> };
   watchlist: { total: number; active: number; downgraded: number; exited: number };
-  latestTask: { taskId: string; taskName: string; status: string; errorMessage: string | null } | null;
+  latestTask: { taskId: string; taskName: string; status: string; errorMessage: string | null; stepDetail: string | null } | null;
 };
 
 type PageState = { loading: true } | { loading: false; data: DashboardData | null; error: string | null };
@@ -91,6 +91,11 @@ export default function DashboardPage() {
             <button className="h-10 rounded-md border border-[var(--accent)] px-4 text-sm font-medium text-[var(--accent)] disabled:opacity-50" onClick={() => triggerPipeline("run-screening")} disabled={running !== null} type="button">{running === "run-screening" ? "筛选+分析中…" : "运行筛选"}</button>
           </div>
         </div>
+        {running && (
+          <div className="mt-3 rounded-lg border border-[var(--accent)] bg-blue-50 p-3 text-sm text-[var(--accent)]">
+            {running === "update-data" ? "正在采集数据…" : "正在运行筛选+分析…"}（完成后自动刷新）
+          </div>
+        )}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{items.map((item) => (<MetricCard key={item.label} metric={item} />))}</div>
         <div className="mt-6 rounded-lg border border-[var(--line)] bg-white">
           <div className="border-b border-[var(--line)] px-5 py-4"><h3 className="text-base font-semibold">任务链路</h3></div>

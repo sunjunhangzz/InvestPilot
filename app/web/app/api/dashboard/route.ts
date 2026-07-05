@@ -57,7 +57,7 @@ export async function GET() {
   const wl = (wlRow ?? {}) as Record<string, number>;
 
   const latestTask = queryOne(
-    `SELECT task_id, task_name, status, started_at, finished_at, error_message
+    `SELECT task_id, task_name, status, started_at, finished_at, error_message, step_detail
      FROM system_tasks ORDER BY created_at DESC LIMIT 1`,
   );
 

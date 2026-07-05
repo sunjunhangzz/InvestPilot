@@ -20,7 +20,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from app.worker.src.data_sources.price_source import fetch_daily_prices, upsert_daily_prices
 from app.worker.src.db import database_connection
-from app.worker.src.tasks import mark_task_failed, mark_task_success
+from app.worker.src.tasks import mark_task_failed, mark_task_success, update_task_progress
 from app.worker.src.loggers import write_json_log
 from app.shared.paths import get_config_paths
 from app.worker.src.utils.arg_utils import resolve_task_id
@@ -133,6 +133,8 @@ def main(argv: list[str] | None = None) -> int:
                            task_id=task_id, message=f"write failed for {code}: {error}", context={"code": code})
             continue
         total_rows += len(rows); success_count += 1
+        if (idx + 1) % 10 == 0:
+            update_task_progress(task_id, "prices", idx + 1, len(codes), f"{code}")
         if (idx + 1) % 100 == 0:
             elapsed = time.monotonic() - start_time
             print(f"  progress: {idx + 1}/{len(codes)} ({elapsed:.0f}s)")

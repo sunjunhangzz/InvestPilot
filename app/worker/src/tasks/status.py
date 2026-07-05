@@ -215,3 +215,24 @@ def mark_task_cancelled(
     """Mark a task as cancelled."""
 
     update_task_status(task_id=task_id, status="cancelled", connection=connection)
+
+def update_task_progress(
+    task_id: str,
+    step: str,
+    current: int = 0,
+    total: int = 0,
+    detail: str = "",
+    connection: sqlite3.Connection | None = None,
+) -> None:
+    """Write progress to step_detail for frontend polling."""
+    import json
+    active = connection or connect_database()
+    try:
+        with active:
+            active.execute(
+                "UPDATE system_tasks SET step_detail=? WHERE task_id=?",
+                (json.dumps({"step": step, "current": current, "total": total, "detail": detail}), task_id),
+            )
+    finally:
+        if connection is None:
+            active.close()

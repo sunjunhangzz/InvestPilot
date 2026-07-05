@@ -20,7 +20,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from app.worker.src.db import database_connection
-from app.worker.src.tasks import mark_task_failed, mark_task_success
+from app.worker.src.tasks import mark_task_failed, mark_task_success, update_task_progress
 from app.worker.src.loggers import write_json_log
 from app.worker.src.reports.ai_provider import is_ai_enabled
 from app.worker.src.reports.generator import (
@@ -182,6 +182,7 @@ def main() -> int:
                             (run_id_val,code,trade_date_str,r["rating"],r["consensus"],
                              "4-round debate",r["summary"],"deepseek-v4-flash"))
                         wc.commit()
+                    update_task_progress(task_id, "committee", len(results)+1, len(committee_recs), code)
                     print(f"  {code}: rating={r['rating']} consensus={r['consensus']} ✓")
                 except Exception as dbe:
                     print(f"  {code}: rating={r['rating']} DB write failed: {dbe}")
