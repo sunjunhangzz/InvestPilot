@@ -33,7 +33,7 @@ export async function GET(
 
   // Recent recommendations.
   const recs = queryAll(
-    `SELECT run_id, trade_date, rating, rank, total_score, reason, risk_tags
+    `SELECT run_id, trade_date, created_at, rating, rank, total_score, reason, risk_tags
      FROM recommendations WHERE code = ? ORDER BY created_at DESC LIMIT 5`,
     [code],
   );
