@@ -15,6 +15,8 @@ export default function RecommendationsPage() {
   const [data, setData] = useState<Rec[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [debateContent, setDebateContent] = useState<string | null>(null);
+  const [debateCode, setDebateCode] = useState("");
 
   useEffect(() => {
     let c = false;
@@ -30,6 +32,16 @@ export default function RecommendationsPage() {
     return () => { c = true; };
   }, []);
 
+  const showDebate = async (code: string, tradeDate: string) => {
+    setDebateCode(code);
+    setDebateContent("加载中…");
+    try {
+      const r = await fetch(`/api/debates?code=${code}&tradeDate=${tradeDate}`);
+      const j = await r.json();
+      setDebateContent(j.ok ? j.data.content : "暂无辩论报告");
+    } catch { setDebateContent("加载失败"); }
+  };
+
   const badge = (r: string) => {
     const m: Record<string, string> = { A: "bg-green-100 text-green-800", B: "bg-blue-100 text-blue-800" };
     return <span className={`rounded px-2 py-0.5 text-xs font-semibold ${m[r] ?? "bg-gray-100 text-gray-600"}`}>{r}</span>;
@@ -44,10 +56,20 @@ export default function RecommendationsPage() {
   return (
     <AppShell>
       <section className="mx-auto max-w-7xl px-6 py-8"><h2 className="text-xl font-semibold">今日推荐</h2><p className="mt-2 text-sm text-[var(--muted)]">共 {recs.length} 只 · 交易日 {recs[0]?.tradeDate ?? "—"}</p>
-        <div className="mt-4 overflow-x-auto rounded-lg border border-[var(--line)] bg-white"><table className="w-full text-sm"><thead><tr className="border-b border-[var(--line)] bg-[var(--panel)] text-left text-[var(--muted)]"><th className="px-3 py-3 font-medium">评级</th><th className="px-3 py-3 font-medium">代码</th><th className="px-3 py-3 font-medium">名称</th><th className="px-3 py-3 font-medium">收盘价</th><th className="px-3 py-3 font-medium">趋势</th><th className="px-3 py-3 font-medium">动量</th><th className="px-3 py-3 font-medium">流动</th><th className="px-3 py-3 font-medium">风险</th><th className="px-3 py-3 font-medium">AI评级</th><th className="px-3 py-3 font-medium">总分</th><th className="px-3 py-3 font-medium">理由</th><th className="px-3 py-3 font-medium">风险</th></tr></thead><tbody>
-          {recs.map((r) => (<tr key={r.code} className="border-b border-[var(--line)] hover:bg-[var(--panel)]"><td className="px-3 py-3">{badge(r.rating)}</td><td className="px-3 py-3"><Link className="font-medium text-[var(--accent)] hover:underline" href={`/stocks/${r.code}`}>{r.code}</Link></td><td className="px-3 py-3">{r.name}</td><td className="px-3 py-3">{r.close?.toFixed(2) ?? "—"}</td><td className="px-3 py-3">{r.trendScore?.toFixed(0) ?? "—"}</td><td className="px-3 py-3">{r.momentumScore?.toFixed(0) ?? "—"}</td><td className="px-3 py-3">{r.liquidityScore?.toFixed(0) ?? "—"}</td><td className="px-3 py-3">{r.riskScore?.toFixed(0) ?? "—"}</td><td className="px-3 py-3">{r.agentRating != null ? (r.agentRating >= 4 ? "🟢" : r.agentRating >= 3 ? "🟡" : "🔴") + r.agentRating : "—"}</td><td className="px-3 py-3 font-semibold">{r.totalScore}</td><td className="px-3 py-3 max-w-xs truncate">{r.reason}</td><td className="px-3 py-3 text-xs text-[var(--muted)]">{r.riskTags || "—"}</td></tr>))}
+        <div className="mt-4 overflow-x-auto rounded-lg border border-[var(--line)] bg-white"><table className="w-full text-sm"><thead><tr className="border-b border-[var(--line)] bg-[var(--panel)] text-left text-[var(--muted)]"><th className="px-3 py-3 font-medium">评级</th><th className="px-3 py-3 font-medium">代码</th><th className="px-3 py-3 font-medium">名称</th><th className="px-3 py-3 font-medium">收盘价</th><th className="px-3 py-3 font-medium">趋势</th><th className="px-3 py-3 font-medium">动量</th><th className="px-3 py-3 font-medium">流动</th><th className="px-3 py-3 font-medium">风险</th><th className="px-3 py-3 font-medium">AI评级</th><th className="px-3 py-3 font-medium">总分</th><th className="px-3 py-3 font-medium">辩论</th></tr></thead><tbody>
+          {recs.map((r) => (<tr key={r.code} className="border-b border-[var(--line)] hover:bg-[var(--panel)]"><td className="px-3 py-3">{badge(r.rating)}</td><td className="px-3 py-3"><Link className="font-medium text-[var(--accent)] hover:underline" href={`/stocks/${r.code}`}>{r.code}</Link></td><td className="px-3 py-3">{r.name}</td><td className="px-3 py-3">{r.close?.toFixed(2) ?? "—"}</td><td className="px-3 py-3">{r.trendScore?.toFixed(0) ?? "—"}</td><td className="px-3 py-3">{r.momentumScore?.toFixed(0) ?? "—"}</td><td className="px-3 py-3">{r.liquidityScore?.toFixed(0) ?? "—"}</td><td className="px-3 py-3">{r.riskScore?.toFixed(0) ?? "—"}</td><td className="px-3 py-3">{r.agentRating != null ? (r.agentRating >= 4 ? "🟢" : r.agentRating >= 3 ? "🟡" : "🔴") + r.agentRating : "—"}</td><td className="px-3 py-3 font-semibold">{r.totalScore}</td><td className="px-3 py-3">{r.agentRating != null ? <button className="text-xs text-[var(--accent)] hover:underline" onClick={() => showDebate(r.code, r.tradeDate)}>📄</button> : "—"}</td></tr>))}
         </tbody></table></div>
       </section>
+
+      {/* Debate modal */}
+      {debateContent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDebateContent(null)}>
+          <div className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-semibold">辩论报告 — {debateCode}</h3><button className="text-sm text-[var(--muted)]" onClick={() => setDebateContent(null)}>✕</button></div>
+            <pre className="whitespace-pre-wrap text-sm leading-relaxed">{debateContent}</pre>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
