@@ -225,11 +225,17 @@ def _build_noon_md() -> str | None:
 
     # Incremental update.
     today = datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d")
-    import akshare as ak  # type: ignore[import-untyped]
+    import baostock as bs
+    import pandas as pd
+    pd.DataFrame.append = pd.DataFrame._append
+    bs.login()
     updated: dict[str, float] = {}
     for code in codes:
+        prefix = "sh" if code.startswith(("60", "68")) else "sz"
         try:
-            raw = ak.stock_zh_a_daily(symbol=to_sina_symbol(code), start_date=today, end_date=today, adjust="qfq")
+            rs = bs.query_history_k_data_plus(f"{prefix}.{code}", "date,close,open,high,low,volume,amount,turn",
+                                              start_date=today, end_date=today, frequency="d", adjustflag="2")
+            raw = rs.get_data()
             if len(raw) > 0:
                 row = raw.iloc[-1]
                 close = float(row["close"])

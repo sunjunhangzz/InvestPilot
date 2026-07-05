@@ -37,27 +37,30 @@ def fetch_daily_prices(
     end_date: str,
     adjust: str = "qfq",
 ) -> list[dict[str, Any]]:
-    """Return daily price rows for a single stock.
+    """Return daily price rows for a single stock via Baostock."""
 
-    Each dict maps to the ``daily_prices`` table columns:
-    code, trade_date, open, high, low, close, volume, amount,
-    pct_change, turnover, adjust_type.
-    """
+    import baostock as bs  # type: ignore[import-untyped]
+    import pandas as pd  # type: ignore[import-untyped]
+    pd.DataFrame.append = pd.DataFrame._append  # pandas 2.x compat
 
-    import akshare as ak  # type: ignore[import-untyped]
+    prefix = "sh" if code.startswith(("60", "68")) else "sz"
+    symbol = f"{prefix}.{code}"
+    adj_flag = "2" if adjust == "qfq" else "1" if adjust == "hfq" else "3"
 
-    symbol = to_sina_symbol(code)
-    raw = ak.stock_zh_a_daily(
-        symbol=symbol,
-        start_date=start_date,
-        end_date=end_date,
-        adjust=adjust,
-    )
+    bs.login()
+    try:
+        rs = bs.query_history_k_data_plus(
+            symbol, "date,open,high,low,close,volume,amount,turn",
+            start_date=start_date, end_date=end_date,
+            frequency="d", adjustflag=adj_flag,
+        )
+        raw = rs.get_data()
+    finally:
+        bs.logout()
 
     rows: list[dict[str, Any]] = []
     for _, row in raw.iterrows():
-        # Sina source may return 0-volume rows for non-trading days — skip them.
-        volume = float(row["volume"])
+        volume = float(row["volume"]) if row["volume"] else 0
         if volume <= 0:
             continue
 
@@ -70,11 +73,9 @@ def fetch_daily_prices(
                 "low": float(row["low"]),
                 "close": float(row["close"]),
                 "volume": volume,
-                "amount": float(row["amount"]),
-                # pct_change is not provided by sina; set NULL and let the
-                # factor-calculation stage derive it from consecutive closes.
+                "amount": float(row["amount"]) if row["amount"] else 0,
                 "pct_change": None,
-                "turnover": float(row["turnover"]),
+                "turnover": float(row["turn"]) if row["turn"] else 0,
                 "adjust_type": adjust,
             }
         )
