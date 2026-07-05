@@ -144,8 +144,8 @@ def main() -> int:
 
     # Load fundamentals for bonus scoring.
     fund_map: dict[str, dict] = {}
-    with connection:
-        for r in connection.execute("SELECT * FROM fundamentals").fetchall():
+    with database_connection() as fconn:
+        for r in fconn.execute("SELECT * FROM fundamentals").fetchall():
             fund_map[r["code"]] = dict(r)
 
     for code, rows in sorted(prices.items()):
