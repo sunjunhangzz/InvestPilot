@@ -17,6 +17,8 @@
   "filters": {
     "minListingDays": 180,
     "minAverageAmount20d": 100000000,
+    "minAmountFloor": 30000000,
+    "minTurnover20d": 0.003,
     "minPrice": 3,
     "maxPrice": 300
   },

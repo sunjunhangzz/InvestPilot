@@ -20,6 +20,13 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from app.worker.src.db import database_connection
 from app.worker.src.factors.indicators import avg_amount, ma, return_pct
+
+
+def _avg_turnover(rows, window):
+    if len(rows) < window:
+        return None
+    vals = [r["turnover"] for r in rows[-window:]]
+    return sum(vals) / len(vals)
 from app.worker.src.screening.filters import apply_filters
 from app.worker.src.tasks import (
     mark_run_running,
@@ -161,7 +168,7 @@ def main() -> int:
 
         prices_data = connection.execute(
             """
-            SELECT dp.code, dp.trade_date, dp.close, dp.amount
+            SELECT dp.code, dp.trade_date, dp.close, dp.amount, dp.turnover
             FROM daily_prices dp
             JOIN stocks s ON s.code = dp.code
             WHERE s.board = '主板' AND s.is_active = 1 AND dp.trade_date <= ?
@@ -176,7 +183,7 @@ def main() -> int:
         code = row["code"]
         if code not in prices:
             prices[code] = []
-        prices[code].append({"trade_date": row["trade_date"], "close": row["close"], "amount": row["amount"]})
+        prices[code].append({"trade_date": row["trade_date"], "close": row["close"], "amount": row["amount"], "turnover": row["turnover"]})
 
     stocks_list: list[dict] = []
     factors_map: dict[str, dict] = {}
@@ -202,6 +209,7 @@ def main() -> int:
             "risk_score": row["risk_score"],
             "total_score": row["total_score"],
             "avg_amount": avg_amount(price_rows, 20) or 0,
+            "avg_turnover": _avg_turnover(price_rows, 20) or 0,
             "trend": {
                 "close": close_val,
                 "ma20": ma(price_rows, 20),

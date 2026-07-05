@@ -48,17 +48,22 @@ def apply_filters(
             rejected.append({**stock, "reject_reason": f"上市不足{min_days}天"})
             continue
 
-        # --- 4. liquidity ---
+        # --- 4. liquidity (dual: absolute floor + turnover rate) ---
         min_amount = filters_config["minAverageAmount20d"]
+        min_floor = filters_config.get("minAmountFloor", 30000000)
+        min_turnover = filters_config.get("minTurnover20d", 0.003)
         factor = factors.get(code, {})
         avg_amt = factor.get("avg_amount", 0)
+        avg_to = factor.get("avg_turnover", 0)
+
+        if avg_amt < min_floor:
+            rejected.append({**stock, "reject_reason": f"20日均成交额{avg_amt/1e4:.0f}万 < {min_floor/1e4:.0f}万（僵尸股）"})
+            continue
+        if avg_to < min_turnover:
+            rejected.append({**stock, "reject_reason": f"20日均换手率{avg_to*100:.1f}% < {min_turnover*100:.1f}%（流动性不足）"})
+            continue
         if avg_amt < min_amount:
-            rejected.append(
-                {
-                    **stock,
-                    "reject_reason": f"20日均成交额{avg_amt/1e8:.1f}亿 < {min_amount/1e8:.0f}亿",
-                }
-            )
+            rejected.append({**stock, "reject_reason": f"20日均成交额{avg_amt/1e8:.1f}亿 < {min_amount/1e8:.0f}亿"})
             continue
 
         # --- 5. price ---
